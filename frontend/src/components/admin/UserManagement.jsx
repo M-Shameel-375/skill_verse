@@ -164,4 +164,28 @@ const UserManagement = () => {
                           className={`p-2 hover:bg-gray-100 rounded-lg transition ${
                             user.status === 'active' ? 'text-yellow-600' : 'text-green-600'
                           }`}
-                          title={user.status === 'active' ? 'Suspend' : 'Activate'}\n                        >\n                          {user.status === 'active' ? <FaBan /> : <FaCheck />}\n                        </button>\n                        <button\n                          onClick={() => handleDeleteUser(user.id)}\n                          className=\"p-2 hover:bg-gray-100 rounded-lg text-red-600 transition\"\n                          title=\"Delete user\"\n                        >\n                          <FaTrash />\n                        </button>\n                      </div>\n                    </td>\n                  </tr>\n                ))}\n              </tbody>\n            </table>\n          </div>\n        </Card>\n      </div>\n    </div>\n  );\n};\n\nexport default UserManagement;
+                          title={user.status === 'active' ? 'Suspend' : 'Activate'}
+                        >
+                          {user.status === 'active' ? <FaBan /> : <FaCheck />}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="p-2 hover:bg-gray-100 rounded-lg text-red-600 transition"
+                          title="Delete user"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default UserManagement;

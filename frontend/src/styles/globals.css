@@ -1,4 +1,11 @@
 /* ============================================
+   TAILWIND CSS
+   ============================================ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
    GLOBAL STYLES - LEARNING PLATFORM
    ============================================ */
 
@@ -199,6 +206,14 @@ body {
   background-color: var(--bg-primary);
   min-height: 100vh;
   overflow-x: hidden;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
 }
 
 /* ============================================
