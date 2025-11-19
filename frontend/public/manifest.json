@@ -1,0 +1,9 @@
+{
+  "name": "SkillVerse",
+  "short_name": "SkillVerse",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a73e8",
+  "icons": []
+}
