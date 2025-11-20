@@ -28,6 +28,7 @@ const rateLimiter = require('./middlewares/rateLimiter.middleware');
 
 // Import routes
 const routes = require('./routes');
+const webhookRoutes = require('./routes/webhook.routes');
 
 // Import socket handler
 const socketHandler = require('./sockets/socketHandler');
@@ -120,6 +121,7 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use(config.server.apiVersion, routes);
+app.use('/webhooks', webhookRoutes);
 
 // ============================================
 // ROOT ROUTE

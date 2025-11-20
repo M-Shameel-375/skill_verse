@@ -4,61 +4,55 @@
 // ============================================
 
 import React, { lazy, Suspense } from 'react';
+import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
 import { createBrowserRouter, Outlet } from 'react-router-dom';
 import config from './config';
-import { FullPageLoader } from './components/common/Loader';
-import ProtectedRoute, {
-  GuestRoute,
-  RequireAuth,
-  RequireAdmin,
-  RequireEducator,
-  RequireEmailVerification,
-} from './components/common/ProtectedRoute';
+import { FullPageLoader } from './features/shared/components/Loader';
 
 // Layout Components
-import Header from './components/common/Header';
-import Footer from './components/common/Footer';
-import Navbar from './components/common/Navbar';
-import { SidebarLayout } from './components/common/Sidebar';
+import Header from './features/shared/components/Header';
+import Footer from './features/shared/components/Footer';
+import Navbar from './features/shared/components/Navbar';
+import { SidebarLayout } from './features/shared/components/Sidebar';
 
 // ============================================
 // LAZY LOAD PAGES
 // ============================================
 
 // Public Pages
-const Home = lazy(() => import('./pages/Home'));
-const Courses = lazy(() => import('./pages/Courses'));
-const CourseDetail = lazy(() => import('./pages/CourseDetail'));
-const LiveSessions = lazy(() => import('./pages/LiveSessions'));
-const SkillExchange = lazy(() => import('./pages/SkillExchange'));
-const NotFound = lazy(() => import('./pages/NotFound'));
-const Unauthorized = lazy(() => import('./pages/Unauthorized'));
+const Home = lazy(() => import('./features/shared/pages/Home'));
+const Courses = lazy(() => import('./features/courses/pages/Courses'));
+const CourseDetail = lazy(() => import('./features/courses/pages/CourseDetail'));
+const LiveSessions = lazy(() => import('./features/communication/pages/LiveSessions'));
+const SkillExchange = lazy(() => import('./features/skill-exchange/pages/SkillExchange'));
+const NotFound = lazy(() => import('./features/shared/pages/NotFound'));
+const Unauthorized = lazy(() => import('./features/shared/pages/Unauthorized'));
 
 // Auth Pages
-const Login = lazy(() => import('./components/auth/Login'));
-const Register = lazy(() => import('./components/auth/Register'));
-const ForgotPassword = lazy(() => import('./components/auth/ForgotPassword'));
-const ResetPassword = lazy(() => import('./components/auth/ResetPassword'));
-const VerifyEmail = lazy(() => import('./components/auth/VerifyEmail'));
+const SignInPage = lazy(() => import('./features/auth/pages/SignInPage'));
+const SignUpPage = lazy(() => import('./features/auth/pages/SignUpPage'));
+const ForgotPassword = lazy(() => import('./features/auth/components/ForgotPassword'));
+const ResetPassword = lazy(() => import('./features/auth/components/ResetPassword'));
+const VerifyEmail = lazy(() => import('./features/auth/components/VerifyEmail'));
 
 // Protected Pages
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Profile = lazy(() => import('./pages/Profile'));
-const Settings = lazy(() => import('./pages/Settings'));
-const MyCourses = lazy(() => import('./pages/MyCourses'));
-const MyLearning = lazy(() => import('./pages/MyLearning'));
-const Certificates = lazy(() => import('./pages/Certificates'));
+const Dashboard = lazy(() => import('./features/educator/pages/Dashboard'));
+const Profile = lazy(() => import('./features/learner/pages/Profile'));
+const Settings = lazy(() => import('./features/learner/pages/Settings'));
+const MyCourses = lazy(() => import('./features/educator/pages/MyCourses'));
+const MyLearning = lazy(() => import('./features/learner/pages/MyLearning'));
+const Certificates = lazy(() => import('./features/learner/pages/Certificates'));
 
 // Admin Pages
-const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
-const UserManagement = lazy(() => import('./components/admin/UserManagement'));
-const CourseModeration = lazy(() => import('./components/admin/CourseModeration'));
-const Analytics = lazy(() => import('./components/admin/Analytics'));
+const AdminDashboard = lazy(() => import('./features/admin/components/AdminDashboard'));
+const UserManagement = lazy(() => import('./features/admin/components/UserManagement'));
+const CourseModeration = lazy(() => import('./features/admin/components/CourseModeration'));
+const Analytics = lazy(() => import('./features/admin/components/Analytics'));
 
 // Educator Pages
-const EducatorDashboard = lazy(() => import('./components/educator/EducatorDashboard'));
-const CourseUpload = lazy(() => import('./components/educator/CourseUpload'));
-const QuizCreator = lazy(() => import('./components/educator/QuizCreator'));
+const EducatorDashboard = lazy(() => import('./features/educator/components/EducatorDashboard'));
+const CourseUpload = lazy(() => import('./features/educator/components/CourseUpload'));
+const QuizCreator = lazy(() => import('./features/educator/components/QuizCreator'));
 
 // ============================================
 // LAYOUT WRAPPERS
@@ -138,36 +132,20 @@ const router = createBrowserRouter([
     element: <AuthLayout />,
     children: [
       {
-        path: 'login',
-        element: (
-          <GuestRoute>
-            <Login />
-          </GuestRoute>
-        ),
+        path: 'sign-in',
+        element: <SignInPage />,
       },
       {
-        path: 'register',
-        element: (
-          <GuestRoute>
-            <Register />
-          </GuestRoute>
-        ),
+        path: 'sign-up',
+        element: <SignUpPage />,
       },
       {
         path: 'forgot-password',
-        element: (
-          <GuestRoute>
-            <ForgotPassword />
-          </GuestRoute>
-        ),
+        element: <ForgotPassword />,
       },
       {
         path: 'reset-password/:token',
-        element: (
-          <GuestRoute>
-            <ResetPassword />
-          </GuestRoute>
-        ),
+        element: <ResetPassword />,
       },
       {
         path: 'verify-email/:token',
@@ -181,9 +159,14 @@ const router = createBrowserRouter([
   // ============================================
   {
     element: (
-      <RequireAuth>
-        <DashboardLayout />
-      </RequireAuth>
+      <>
+        <SignedIn>
+          <DashboardLayout />
+        </SignedIn>
+        <SignedOut>
+          <RedirectToSignIn />
+        </SignedOut>
+      </>
     ),
     children: [
       {
@@ -208,11 +191,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'certificates',
-        element: (
-          <RequireEmailVerification>
-            <Certificates />
-          </RequireEmailVerification>
-        ),
+        element: <Certificates />,
       },
     ],
   },
@@ -223,9 +202,14 @@ const router = createBrowserRouter([
   {
     path: 'admin',
     element: (
-      <RequireAdmin>
-        <DashboardLayout />
-      </RequireAdmin>
+      <>
+        <SignedIn>
+          <DashboardLayout />
+        </SignedIn>
+        <SignedOut>
+          <RedirectToSignIn />
+        </SignedOut>
+      </>
     ),
     children: [
       {
@@ -253,9 +237,14 @@ const router = createBrowserRouter([
   {
     path: 'educator',
     element: (
-      <RequireEducator>
-        <DashboardLayout />
-      </RequireEducator>
+      <>
+        <SignedIn>
+          <DashboardLayout />
+        </SignedIn>
+        <SignedOut>
+          <RedirectToSignIn />
+        </SignedOut>
+      </>
     ),
     children: [
       {

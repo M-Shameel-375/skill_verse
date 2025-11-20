@@ -4,6 +4,16 @@
 // ============================================
 
 import { format, formatDistance, formatDistanceToNow } from 'date-fns';
+import clsx from 'clsx';
+
+// ============================================
+// CLASSNAME UTILITIES
+// ============================================
+
+// Utility for merging Tailwind CSS classes
+export const cn = (...inputs) => {
+  return clsx(inputs);
+};
 
 // ============================================
 // STRING HELPERS

@@ -12,6 +12,12 @@ const userSchema = new mongoose.Schema(
     // ============================================
     // BASIC INFORMATION
     // ============================================
+    clerkId: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
     name: {
       type: String,
       required: [true, 'Name is required'],
@@ -31,7 +37,6 @@ const userSchema = new mongoose.Schema(
 
     password: {
       type: String,
-      required: [true, 'Password is required'],
       minlength: [8, 'Password must be at least 8 characters'],
       select: false, // Don't return password by default
     },

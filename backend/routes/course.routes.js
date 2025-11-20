@@ -55,16 +55,6 @@ router.put('/:id/thumbnail', protect, uploadSingleImage('thumbnail'), uploadCour
 router.put('/:id/publish', protect, publishCourse);
 router.put('/:id/unpublish', protect, unpublishCourse);
 
-// Section routes
-router.post('/:id/sections', protect, addSection);
-router.put('/:id/sections/:sectionId', protect, updateSection);
-router.delete('/:id/sections/:sectionId', protect, deleteSection);
-
-// Lecture routes
-router.post('/:id/sections/:sectionId/lectures', protect, addLecture);
-router.put('/:id/sections/:sectionId/lectures/:lectureId', protect, updateLecture);
-router.delete('/:id/sections/:sectionId/lectures/:lectureId', protect, deleteLecture);
-
 // Student routes
 router.post('/:id/enroll', protect, enrollInCourse);
 router.get('/:id/curriculum', protect, getCourseCurriculum);
