@@ -51,7 +51,9 @@ export const COURSE_STATUS = {
 };
 
 // Course Levels
-export const COURSE_LEVELS = {
+export const COURSE_LEVELS = ['Beginner', 'Intermediate', 'Advanced', 'Expert'];
+
+export const COURSE_LEVEL_VALUES = {
   BEGINNER: 'beginner',
   INTERMEDIATE: 'intermediate',
   ADVANCED: 'advanced',

@@ -3,16 +3,16 @@
 // ============================================
 
 import axios from 'axios';
-import config from '../config';
+import appConfig from '../config';
 import { storage } from '../utils/helpers';
 
 // ============================================
 // CREATE AXIOS INSTANCE
 // ============================================
 const axiosInstance = axios.create({
-  baseURL: config.api.baseURL,
-  timeout: config.api.timeout,
-  headers: config.api.headers,
+  baseURL: appConfig.api.baseURL,
+  timeout: appConfig.api.timeout,
+  headers: appConfig.api.headers,
 });
 
 // ============================================
@@ -21,7 +21,7 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     // Get token from localStorage
-    const token = storage.get(config.auth.tokenKey);
+    const token = storage.get(appConfig.auth.tokenKey);
 
     // Add token to headers if it exists
     if (token) {
@@ -85,7 +85,7 @@ axiosInstance.interceptors.response.use(
 
       try {
         // Try to refresh token
-        const refreshToken = storage.get(config.auth.refreshTokenKey);
+        const refreshToken = storage.get(appConfig.auth.refreshTokenKey);
 
         if (refreshToken) {
           const response = await axios.post(
@@ -96,8 +96,8 @@ axiosInstance.interceptors.response.use(
           const { accessToken, refreshToken: newRefreshToken } = response.data.data;
 
           // Save new tokens
-          storage.set(config.auth.tokenKey, accessToken);
-          storage.set(config.auth.refreshTokenKey, newRefreshToken);
+          storage.set(appConfig.auth.tokenKey, accessToken);
+          storage.set(appConfig.auth.refreshTokenKey, newRefreshToken);
 
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
@@ -105,9 +105,9 @@ axiosInstance.interceptors.response.use(
         }
       } catch (refreshError) {
         // Refresh failed - logout user
-        storage.remove(config.auth.tokenKey);
-        storage.remove(config.auth.refreshTokenKey);
-        storage.remove(config.auth.userKey);
+        storage.remove(appConfig.auth.tokenKey);
+        storage.remove(appConfig.auth.refreshTokenKey);
+        storage.remove(appConfig.auth.userKey);
 
         // Redirect to login
         window.location.href = config.routes.login;
@@ -168,10 +168,10 @@ axiosInstance.interceptors.response.use(
 export const setAuthToken = (token) => {
   if (token) {
     axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    storage.set(config.auth.tokenKey, token);
+    storage.set(appConfig.auth.tokenKey, token);
   } else {
     delete axiosInstance.defaults.headers.common['Authorization'];
-    storage.remove(config.auth.tokenKey);
+    storage.remove(appConfig.auth.tokenKey);
   }
 };
 
@@ -180,16 +180,16 @@ export const setAuthToken = (token) => {
  */
 export const removeAuthToken = () => {
   delete axiosInstance.defaults.headers.common['Authorization'];
-  storage.remove(config.auth.tokenKey);
-  storage.remove(config.auth.refreshTokenKey);
-  storage.remove(config.auth.userKey);
+  storage.remove(appConfig.auth.tokenKey);
+  storage.remove(appConfig.auth.refreshTokenKey);
+  storage.remove(appConfig.auth.userKey);
 };
 
 /**
  * Check if user is authenticated
  */
 export const isAuthenticated = () => {
-  const token = storage.get(config.auth.tokenKey);
+  const token = storage.get(appConfig.auth.tokenKey);
   return !!token;
 };
 
@@ -197,7 +197,7 @@ export const isAuthenticated = () => {
  * Get current user from storage
  */
 export const getCurrentUser = () => {
-  return storage.get(config.auth.userKey);
+  return storage.get(appConfig.auth.userKey);
 };
 
 /**

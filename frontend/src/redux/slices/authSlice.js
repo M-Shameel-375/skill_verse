@@ -11,12 +11,18 @@ import { setAuthToken, removeAuthToken } from '../../api/axios';
 // ============================================
 // INITIAL STATE
 // ============================================
+const authConfig = config?.auth || {
+  tokenKey: 'skillverse_access_token',
+  refreshTokenKey: 'skillverse_refresh_token',
+  userKey: 'skillverse_user',
+};
+
 const initialState = {
-  user: storage.get(config.auth.userKey) || null,
-  token: storage.get(config.auth.tokenKey) || null,
-  refreshToken: storage.get(config.auth.refreshTokenKey) || null,
-  isAuthenticated: !!storage.get(config.auth.tokenKey),
-  isEmailVerified: storage.get(config.auth.userKey)?.isEmailVerified || false,
+  user: storage.get(authConfig.userKey) || null,
+  token: storage.get(authConfig.tokenKey) || null,
+  refreshToken: storage.get(authConfig.refreshTokenKey) || null,
+  isAuthenticated: !!storage.get(authConfig.tokenKey),
+  isEmailVerified: storage.get(authConfig.userKey)?.isEmailVerified || false,
   loading: false,
   error: null,
   
@@ -263,14 +269,14 @@ const authSlice = createSlice({
     // Update user locally
     updateUserLocally: (state, action) => {
       state.user = { ...state.user, ...action.payload };
-      storage.set(config.auth.userKey, state.user);
+      storage.set(authConfig.userKey, state.user);
     },
     
     // Set authentication from storage (for app initialization)
     initializeAuth: (state) => {
-      const token = storage.get(config.auth.tokenKey);
-      const refreshToken = storage.get(config.auth.refreshTokenKey);
-      const user = storage.get(config.auth.userKey);
+      const token = storage.get(authConfig.tokenKey);
+      const refreshToken = storage.get(authConfig.refreshTokenKey);
+      const user = storage.get(authConfig.userKey);
       
       if (token && user) {
         state.token = token;
@@ -303,9 +309,9 @@ const authSlice = createSlice({
         state.registrationSuccess = true;
         
         // Save to storage
-        storage.set(config.auth.tokenKey, action.payload.accessToken);
-        storage.set(config.auth.refreshTokenKey, action.payload.refreshToken);
-        storage.set(config.auth.userKey, action.payload.user);
+        storage.set(authConfig.tokenKey, action.payload.accessToken);
+        storage.set(authConfig.refreshTokenKey, action.payload.refreshToken);
+        storage.set(authConfig.userKey, action.payload.user);
         
         // Set axios auth token
         setAuthToken(action.payload.accessToken);
@@ -331,9 +337,9 @@ const authSlice = createSlice({
         state.isEmailVerified = action.payload.user.isEmailVerified;
         
         // Save to storage
-        storage.set(config.auth.tokenKey, action.payload.accessToken);
-        storage.set(config.auth.refreshTokenKey, action.payload.refreshToken);
-        storage.set(config.auth.userKey, action.payload.user);
+        storage.set(authConfig.tokenKey, action.payload.accessToken);
+        storage.set(authConfig.refreshTokenKey, action.payload.refreshToken);
+        storage.set(authConfig.userKey, action.payload.user);
         
         // Set axios auth token
         setAuthToken(action.payload.accessToken);
@@ -359,9 +365,9 @@ const authSlice = createSlice({
         state.error = null;
         
         // Clear storage
-        storage.remove(config.auth.tokenKey);
-        storage.remove(config.auth.refreshTokenKey);
-        storage.remove(config.auth.userKey);
+        storage.remove(authConfig.tokenKey);
+        storage.remove(authConfig.refreshTokenKey);
+        storage.remove(authConfig.userKey);
         
         // Remove axios auth token
         removeAuthToken();
@@ -375,9 +381,9 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.isEmailVerified = false;
         
-        storage.remove(config.auth.tokenKey);
-        storage.remove(config.auth.refreshTokenKey);
-        storage.remove(config.auth.userKey);
+        storage.remove(authConfig.tokenKey);
+        storage.remove(authConfig.refreshTokenKey);
+        storage.remove(authConfig.userKey);
         removeAuthToken();
       })
     
@@ -393,7 +399,7 @@ const authSlice = createSlice({
         state.isEmailVerified = action.payload.isEmailVerified;
         
         // Update storage
-        storage.set(config.auth.userKey, action.payload);
+        storage.set(authConfig.userKey, action.payload);
       })
       .addCase(getCurrentUser.rejected, (state, action) => {
         state.loading = false;
@@ -414,7 +420,7 @@ const authSlice = createSlice({
         
         if (state.user) {
           state.user.isEmailVerified = true;
-          storage.set(config.auth.userKey, state.user);
+          storage.set(authConfig.userKey, state.user);
         }
       })
       .addCase(verifyEmail.rejected, (state, action) => {
@@ -498,7 +504,7 @@ const authSlice = createSlice({
         state.user = action.payload;
         
         // Update storage
-        storage.set(config.auth.userKey, action.payload);
+        storage.set(authConfig.userKey, action.payload);
       })
       .addCase(updateUserDetails.rejected, (state, action) => {
         state.loading = false;
@@ -520,9 +526,9 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         
         // Clear storage
-        storage.remove(config.auth.tokenKey);
-        storage.remove(config.auth.refreshTokenKey);
-        storage.remove(config.auth.userKey);
+        storage.remove(authConfig.tokenKey);
+        storage.remove(authConfig.refreshTokenKey);
+        storage.remove(authConfig.userKey);
         removeAuthToken();
       })
       .addCase(deleteAccount.rejected, (state, action) => {
@@ -546,9 +552,9 @@ const authSlice = createSlice({
         state.isEmailVerified = action.payload.user.isEmailVerified;
         
         // Save to storage
-        storage.set(config.auth.tokenKey, action.payload.accessToken);
-        storage.set(config.auth.refreshTokenKey, action.payload.refreshToken);
-        storage.set(config.auth.userKey, action.payload.user);
+        storage.set(authConfig.tokenKey, action.payload.accessToken);
+        storage.set(authConfig.refreshTokenKey, action.payload.refreshToken);
+        storage.set(authConfig.userKey, action.payload.user);
         setAuthToken(action.payload.accessToken);
       })
       .addCase(socialLogin.rejected, (state, action) => {
@@ -564,8 +570,8 @@ const authSlice = createSlice({
         state.refreshToken = action.payload.refreshToken;
         
         // Update storage
-        storage.set(config.auth.tokenKey, action.payload.accessToken);
-        storage.set(config.auth.refreshTokenKey, action.payload.refreshToken);
+        storage.set(authConfig.tokenKey, action.payload.accessToken);
+        storage.set(authConfig.refreshTokenKey, action.payload.refreshToken);
         setAuthToken(action.payload.accessToken);
       })
       .addCase(refreshAuthToken.rejected, (state) => {
@@ -575,9 +581,9 @@ const authSlice = createSlice({
         state.refreshToken = null;
         state.isAuthenticated = false;
         
-        storage.remove(config.auth.tokenKey);
-        storage.remove(config.auth.refreshTokenKey);
-        storage.remove(config.auth.userKey);
+        storage.remove(authConfig.tokenKey);
+        storage.remove(authConfig.refreshTokenKey);
+        storage.remove(authConfig.userKey);
         removeAuthToken();
       });
   },
@@ -610,3 +616,4 @@ export const selectUserRole = (state) => state.auth.user?.role;
 // EXPORT REDUCER
 // ============================================
 export default authSlice.reducer;
+
