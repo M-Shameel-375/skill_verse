@@ -4,6 +4,7 @@ import { FaCreditCard, FaLock } from 'react-icons/fa';
 import Button from '../common/Button';
 import Card from '../common/Card';
 import toast from 'react-hot-toast';
+import { createPaymentIntent } from '../../../api/paymentApi';
 
 const CheckoutForm = ({ amount, courseId, onSuccess, onError }) => {
   const stripe = useStripe();
@@ -27,16 +28,12 @@ const CheckoutForm = ({ amount, courseId, onSuccess, onError }) => {
     setIsProcessing(true);
 
     try {
-      const response = await fetch('/api/v1/payments/create-intent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: Math.round(amount * 100),
-          courseId,
-        }),
+      const response = await createPaymentIntent({
+        amount: amount,
+        courseId,
       });
 
-      const { clientSecret } = await response.json();
+      const { clientSecret } = response.data;
 
       const result = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
@@ -56,6 +53,7 @@ const CheckoutForm = ({ amount, courseId, onSuccess, onError }) => {
         if (onSuccess) onSuccess(result.paymentIntent);
       }
     } catch (error) {
+      console.error('Payment error:', error);
       toast.error('Payment failed');
       if (onError) onError(error);
     } finally {

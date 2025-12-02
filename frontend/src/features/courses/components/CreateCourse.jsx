@@ -5,7 +5,7 @@ import * as Yup from 'yup';
 import { FaSave, FaArrowLeft } from 'react-icons/fa';
 import Button from '../common/Button';
 import Card from '../common/Card';
-import toast from 'react-hot-toast';
+import { createCourse } from '../../../api/courseApi';
 
 const validationSchema = Yup.object().shape({
   title: Yup.string().required('Title is required').min(5, 'Title must be at least 5 characters'),
@@ -36,12 +36,12 @@ const CreateCourse = () => {const navigate = useNavigate();
 
   const handleSubmit = async (values, { setSubmitting }) => {
     try {
-      // TODO: Call API to create course
-      console.log('Creating course:', values);
+      await createCourse(values);
       toast.success('Course created successfully!');
       navigate('/my-courses');
     } catch (error) {
-      toast.error('Failed to create course');
+      console.error('Error creating course:', error);
+      toast.error(error.response?.data?.message || 'Failed to create course');
     } finally {
       setSubmitting(false);
     }
