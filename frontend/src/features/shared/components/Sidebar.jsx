@@ -3,7 +3,7 @@
 // SIDEBAR COMPONENT
 // ============================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -26,8 +26,23 @@ import {
   FaUserGraduate,
   FaChalkboardTeacher
 } from 'react-icons/fa';
-import useAuth from '../../../hooks/useAuth';
 import config from '../../../config';
+
+// ============================================
+// GET USER ROLE FROM LOCALSTORAGE
+// ============================================
+const getUserRole = () => {
+  try {
+    const storedUser = localStorage.getItem('skillverse_user');
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      return user.role || 'learner';
+    }
+    return localStorage.getItem('skillverse_user_role') || 'learner';
+  } catch (e) {
+    return 'learner';
+  }
+};
 
 // ============================================
 // SIDEBAR MENU ITEMS
@@ -190,9 +205,28 @@ const getSidebarItems = (userRole) => {
 // SIDEBAR COMPONENT
 // ============================================
 const Sidebar = ({ collapsed = false, onToggle }) => {
-  const { userRole } = useAuth();
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(collapsed);
+  const [userRole, setUserRole] = useState(getUserRole());
+
+  // Listen for storage changes to update role
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setUserRole(getUserRole());
+    };
+
+    // Check role on mount and when localStorage changes
+    handleStorageChange();
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also check periodically for role changes within same tab
+    const interval = setInterval(handleStorageChange, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
 
   const { main: mainItems, bottom: bottomItems } = getSidebarItems(userRole);
 

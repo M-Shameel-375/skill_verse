@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FaSearch, FaFilter } from 'react-icons/fa';
 import ExchangeCard from './ExchangeCard';
-import { Button } from '../../../../components/ui/Button';
+import { Button } from '@/components/ui/Button';
 
 const ExchangeList = () => {
   const [searchTerm, setSearchTerm] = useState('');

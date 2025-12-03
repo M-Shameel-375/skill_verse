@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FaPlus, FaClock, FaCheckCircle, FaTimesCircle, FaStar, FaUsers } from 'react-icons/fa';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/Card';
-import { Button } from '../../../../components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 
 const SkillExchangeDashboard = () => {

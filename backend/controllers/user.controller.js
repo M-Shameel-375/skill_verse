@@ -587,3 +587,150 @@ exports.exportUserData = asyncHandler(async (req, res) => {
   
   ApiResponse.success(res, user, 'User data exported successfully');
 });
+
+// ============================================
+// @desc    Sync user from Clerk to MongoDB
+// @route   POST /api/v1/users/sync
+// @access  Public (called after Clerk sign-in/sign-up)
+// ============================================
+exports.syncUser = asyncHandler(async (req, res) => {
+  const { clerkId, email, name, profileImage } = req.body;
+
+  if (!clerkId || !email) {
+    throw ApiError.badRequest('Clerk ID and email are required');
+  }
+
+  // Find existing user or create new one
+  let user = await User.findOne({ 
+    $or: [{ clerkId }, { email }] 
+  });
+
+  if (user) {
+    // Update existing user with latest Clerk data
+    user.clerkId = clerkId;
+    if (name) user.name = name;
+    if (profileImage) user.profileImage = { url: profileImage };
+    user.lastLogin = new Date();
+    await user.save();
+  } else {
+    // Create new user with default role
+    user = await User.create({
+      clerkId,
+      email,
+      name: name || email.split('@')[0],
+      profileImage: profileImage ? { url: profileImage } : undefined,
+      role: 'learner', // Default role
+      status: 'active',
+      isEmailVerified: true, // Clerk handles email verification
+      lastLogin: new Date(),
+    });
+  }
+
+  ApiResponse.success(res, {
+    _id: user._id,
+    clerkId: user.clerkId,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    profileImage: user.profileImage,
+    createdAt: user.createdAt,
+  }, 'User synced successfully');
+});
+
+// ============================================
+// @desc    Update or create user role (for Clerk integration)
+// @route   PUT /api/v1/users/role
+// @access  Public (called after Clerk sign-up)
+// ============================================
+exports.updateUserRole = asyncHandler(async (req, res) => {
+  const { clerkId, email, name, role } = req.body;
+
+  if (!email || !role) {
+    throw ApiError.badRequest('Email and role are required');
+  }
+
+  // Validate role
+  const validRoles = ['learner', 'educator', 'skillExchanger'];
+  if (!validRoles.includes(role)) {
+    throw ApiError.badRequest('Invalid role. Must be learner, educator, or skillExchanger');
+  }
+
+  // Find existing user or create new one
+  let user = await User.findOne({ 
+    $or: [{ email }, { clerkId }] 
+  });
+
+  if (user) {
+    // Update existing user
+    user.role = role;
+    if (clerkId) user.clerkId = clerkId;
+    if (name) user.name = name;
+
+    // Initialize role-specific profile
+    if (role === 'educator' && !user.educatorProfile) {
+      user.educatorProfile = {
+        expertise: [],
+        teachingExperience: 0,
+        totalStudents: 0,
+        totalCourses: 0,
+        rating: { average: 0, count: 0 },
+        earnings: { total: 0, pending: 0, withdrawn: 0 },
+        verified: false,
+      };
+    }
+
+    if (role === 'skillExchanger' && !user.skillExchangeProfile) {
+      user.skillExchangeProfile = {
+        offeredSkills: [],
+        desiredSkills: [],
+        completedExchanges: 0,
+        rating: { average: 0, count: 0 },
+        availability: [],
+      };
+    }
+  } else {
+    // Create new user
+    const userData = {
+      clerkId: clerkId || `clerk_${Date.now()}`,
+      email,
+      name: name || email.split('@')[0],
+      role,
+      status: 'active',
+      isEmailVerified: true,
+    };
+
+    // Initialize role-specific profile
+    if (role === 'educator') {
+      userData.educatorProfile = {
+        expertise: [],
+        teachingExperience: 0,
+        totalStudents: 0,
+        totalCourses: 0,
+        rating: { average: 0, count: 0 },
+        earnings: { total: 0, pending: 0, withdrawn: 0 },
+        verified: false,
+      };
+    }
+
+    if (role === 'skillExchanger') {
+      userData.skillExchangeProfile = {
+        offeredSkills: [],
+        desiredSkills: [],
+        completedExchanges: 0,
+        rating: { average: 0, count: 0 },
+        availability: [],
+      };
+    }
+
+    user = await User.create(userData);
+  }
+
+  await user.save();
+
+  ApiResponse.success(res, {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+  }, `User role updated to ${role} successfully`);
+});

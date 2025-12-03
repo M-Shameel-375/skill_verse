@@ -8,7 +8,7 @@ import ExchangeList from '../components/skillExchange/ExchangeList';
 import ExchangeCard from '../components/skillExchange/ExchangeCard';
 import SkillExchangeDashboard from '../components/skillExchange/SkillExchangeDashboard';
 import SkillMatcher from '../components/skillExchange/SkillMatcher';
-import { Button } from '../../../components/ui/Button';
+import { Button } from '@/components/ui/Button';
 import {
   Card,
   CardContent,
@@ -16,16 +16,16 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '../../../components/ui/Card';
-import { Input } from '../../../components/ui/Input';
-import { Label } from '../../../components/ui/Label';
+} from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../../components/ui/Select';
+} from '@/components/ui/Select';
 import toast from 'react-hot-toast';
 
 const SkillExchange = () => {
@@ -45,8 +45,8 @@ const SkillExchange = () => {
 
   useEffect(() => {
     if (!user) {
-      toast.error('Please log in to access skill exchanges');
-      navigate('/login');
+      // toast.error('Please log in to access skill exchanges');
+      // navigate('/login');
     }
   }, [user, navigate]);
 

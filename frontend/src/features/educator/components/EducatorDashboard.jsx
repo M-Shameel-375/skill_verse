@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import { FaChalkboardTeacher, FaPlus, FaUsers, FaMoneyBillWave, FaStar } from 'react-icons/fa';
+import { Helmet } from 'react-helmet-async';
 import { getMyCourses } from '../../../api/courseApi';
 import { getEarnings } from '../../../api/paymentApi';
 import toast from 'react-hot-toast';
 
-const EducatorDashboard = () => {
+const EducatorDashboard = ({ user: dbUser }) => {
+  const navigate = useNavigate();
+  const { user } = useUser();
   const [stats, setStats] = useState({
     totalStudents: 0,
     totalCourses: 0,
@@ -47,6 +51,15 @@ const EducatorDashboard = () => {
     fetchData();
   }, []);
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  const userName = dbUser?.name || user?.firstName || 'Educator';
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -56,24 +69,44 @@ const EducatorDashboard = () => {
   }
 
   return (
-    <div className="p-6 space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Educator Dashboard</h1>
+    <>
+      <Helmet>
+        <title>Educator Dashboard | SkillVerse</title>
+      </Helmet>
+
+      <div className="space-y-8">
+        {/* Welcome Section */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              {getGreeting()}, {userName}! 📚
+            </h1>
+            <p className="text-gray-600">
+              Manage your courses and track your teaching progress.
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+              👨‍🏫 Educator
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
         <div className="flex gap-3">
-            <Link
+          <Link
             to="/educator/quiz/create"
             className="bg-white text-blue-600 border border-blue-600 px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-50"
-            >
+          >
             <FaPlus /> Create Quiz
-            </Link>
-            <Link
+          </Link>
+          <Link
             to="/educator/courses/create"
             className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700"
-            >
+          >
             <FaPlus /> Create New Course
-            </Link>
+          </Link>
         </div>
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -163,7 +196,8 @@ const EducatorDashboard = () => {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import { FaUsers, FaBook, FaDollarSign, FaChartBar } from 'react-icons/fa';
-import Card from '../common/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { motion } from 'framer-motion';
+import { Helmet } from 'react-helmet-async';
 
-const AdminDashboard = () => {
+const AdminDashboard = ({ user: dbUser }) => {
+  const { user } = useUser();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalCourses: 0,
@@ -13,7 +16,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // TODO: Fetch admin stats
+    // TODO: Fetch admin stats from API
     setStats({
       totalUsers: 1250,
       totalCourses: 85,
@@ -23,6 +26,15 @@ const AdminDashboard = () => {
     setLoading(false);
   }, []);
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  const userName = dbUser?.name || user?.firstName || 'Admin';
+
   const statCards = [
     { icon: FaUsers, label: 'Total Users', value: stats.totalUsers, color: 'blue' },
     { icon: FaBook, label: 'Courses', value: stats.totalCourses, color: 'green' },
@@ -31,11 +43,24 @@ const AdminDashboard = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="text-gray-600">Monitor platform activity and statistics</p>
-      </div>
+    <>
+      <Helmet>
+        <title>Admin Dashboard | SkillVerse</title>
+      </Helmet>
+
+      <div className="space-y-6">
+        {/* Welcome Section */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              {getGreeting()}, {userName}! 🛡️
+            </h1>
+            <p className="text-gray-600">Monitor platform activity and manage users.</p>
+          </div>
+          <div className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
+            👑 Admin
+          </div>
+        </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -56,7 +81,7 @@ const AdminDashboard = () => {
               transition={{ delay: index * 0.1 }}
             >
               <Card>
-                <div className="p-6">
+                <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-gray-700 font-medium">{stat.label}</h3>
                     <div className={`p-3 rounded-lg ${colorClasses[stat.color]}`}>
@@ -64,7 +89,7 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                   <div className="text-3xl font-bold text-gray-900">{stat.value}</div>
-                </div>
+                </CardContent>
               </Card>
             </motion.div>
           );
@@ -74,24 +99,25 @@ const AdminDashboard = () => {
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <div className="p-6">
+          <CardContent className="p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Enrollments</h2>
             <div className="space-y-3 text-center text-gray-600">
               <p>Chart placeholder</p>
             </div>
-          </div>
+          </CardContent>
         </Card>
 
         <Card>
-          <div className="p-6">
+          <CardContent className="p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Top Courses</h2>
             <div className="space-y-3 text-center text-gray-600">
               <p>Chart placeholder</p>
             </div>
-          </div>
+          </CardContent>
         </Card>
       </div>
     </div>
+    </>
   );
 };
 

@@ -274,10 +274,10 @@ const Courses = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
-  const courses = useSelector(selectCourses);
+  const courses = useSelector(selectCourses) || [];
   const loading = useSelector(selectCourseLoading);
-  const pagination = useSelector(selectCoursePagination);
-  const filters = useSelector(selectCourseFilters);
+  const pagination = useSelector(selectCoursePagination) || { currentPage: 1, totalPages: 1, totalCourses: 0 };
+  const filters = useSelector(selectCourseFilters) || {};
   
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [showFilters, setShowFilters] = useState(false);

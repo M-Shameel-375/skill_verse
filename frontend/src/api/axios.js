@@ -16,16 +16,37 @@ const axiosInstance = axios.create({
 });
 
 // ============================================
+// CLERK TOKEN GETTER (set by ClerkUserSync)
+// ============================================
+let clerkGetToken = null;
+
+export const setClerkTokenGetter = (getTokenFn) => {
+  clerkGetToken = getTokenFn;
+};
+
+// ============================================
 // REQUEST INTERCEPTOR
 // ============================================
 axiosInstance.interceptors.request.use(
-  (config) => {
-    // Get token from localStorage
-    const token = storage.get(appConfig.auth.tokenKey);
+  async (config) => {
+    // Try to get Clerk token first (async)
+    if (clerkGetToken) {
+      try {
+        const clerkToken = await clerkGetToken();
+        if (clerkToken) {
+          config.headers.Authorization = `Bearer ${clerkToken}`;
+        }
+      } catch (err) {
+        console.warn('Failed to get Clerk token:', err);
+      }
+    }
 
-    // Add token to headers if it exists
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Fallback to localStorage token if no Clerk token
+    if (!config.headers.Authorization) {
+      const token = storage.get(appConfig.auth.tokenKey);
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
 
     // Add timestamp to prevent caching

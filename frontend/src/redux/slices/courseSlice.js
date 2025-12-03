@@ -431,6 +431,8 @@ export const selectCoursePagination = (state) => ({
   totalCourses: state.course.totalCourses,
 });
 export const selectCourseLoading = (state) => state.course.loading;
+export const selectEnrollLoading = (state) => state.course.enrollLoading;
+export const selectCreateLoading = (state) => state.course.createLoading;
 export const selectCourseError = (state) => state.course.error;
 
 // ============================================

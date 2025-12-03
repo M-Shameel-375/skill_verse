@@ -26,6 +26,8 @@ const {
   getTopEducators,
   getRecommendedUsers,
   exportUserData,
+  updateUserRole,
+  syncUser,
 } = require('../controllers/user.controller');
 const { protect } = require('../middlewares/auth.middleware');
 const { uploadSingleImage } = require('../middlewares/upload.middleware');
@@ -35,6 +37,8 @@ const { validateUpdateProfile, validate } = require('../middlewares/validation.m
 router.get('/', getAllUsers);
 router.get('/search', searchUsers);
 router.get('/top-educators', getTopEducators);
+router.post('/sync', syncUser); // Sync user from Clerk to MongoDB
+router.put('/role', updateUserRole); // Role selection endpoint (for Clerk)
 router.get('/:id', getUserProfile);
 router.get('/:id/stats', getUserStats);
 

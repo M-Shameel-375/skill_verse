@@ -5,7 +5,7 @@
 
 import React, { lazy, Suspense } from 'react';
 import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
-import { createBrowserRouter, Outlet } from 'react-router-dom';
+import { createBrowserRouter, Outlet, Navigate } from 'react-router-dom';
 import config from './config';
 import { FullPageLoader } from './features/shared/components/Loader';
 
@@ -16,8 +16,16 @@ import Navbar from './features/shared/components/Navbar';
 import { SidebarLayout } from './features/shared/components/Sidebar';
 
 // ============================================
-// LAZY LOAD PAGES
+// LAZY LOAD PAGES WITH SUSPENSE WRAPPER
 // ============================================
+const lazyLoad = (importFn) => {
+  const Component = lazy(importFn);
+  return (
+    <Suspense fallback={<FullPageLoader />}>
+      <Component />
+    </Suspense>
+  );
+};
 
 // Public Pages
 const Home = lazy(() => import('./features/shared/pages/Home'));
@@ -25,23 +33,26 @@ const Courses = lazy(() => import('./features/courses/pages/Courses'));
 const CourseDetail = lazy(() => import('./features/courses/pages/CourseDetail'));
 const LiveSessions = lazy(() => import('./features/communication/pages/LiveSessions'));
 const SkillExchange = lazy(() => import('./features/skill-exchange/pages/SkillExchange'));
+const SkillExchangeDetail = lazy(() => import('./features/skill-exchange/pages/SkillExchangeDetail'));
 const NotFound = lazy(() => import('./features/shared/pages/NotFound'));
 const Unauthorized = lazy(() => import('./features/shared/pages/Unauthorized'));
 
 // Auth Pages
 const SignInPage = lazy(() => import('./features/auth/pages/SignInPage'));
 const SignUpPage = lazy(() => import('./features/auth/pages/SignUpPage'));
+const RoleSelection = lazy(() => import('./features/auth/pages/RoleSelection'));
 const ForgotPassword = lazy(() => import('./features/auth/components/ForgotPassword'));
 const ResetPassword = lazy(() => import('./features/auth/components/ResetPassword'));
 const VerifyEmail = lazy(() => import('./features/auth/components/VerifyEmail'));
 
 // Protected Pages
-const Dashboard = lazy(() => import('./features/educator/pages/Dashboard'));
+const Dashboard = lazy(() => import('./features/learner/pages/SmartDashboard'));
 const Profile = lazy(() => import('./features/learner/pages/Profile'));
 const Settings = lazy(() => import('./features/learner/pages/Settings'));
 const MyCourses = lazy(() => import('./features/educator/pages/MyCourses'));
 const MyLearning = lazy(() => import('./features/learner/pages/MyLearning'));
 const Certificates = lazy(() => import('./features/learner/pages/Certificates'));
+const Achievements = lazy(() => import('./features/learner/pages/Achievements'));
 
 // Admin Pages
 const AdminDashboard = lazy(() => import('./features/admin/components/AdminDashboard'));
@@ -53,6 +64,16 @@ const Analytics = lazy(() => import('./features/admin/components/Analytics'));
 const EducatorDashboard = lazy(() => import('./features/educator/components/EducatorDashboard'));
 const CourseUpload = lazy(() => import('./features/educator/components/CourseUpload'));
 const QuizCreator = lazy(() => import('./features/educator/components/QuizCreator'));
+const BecomeEducator = lazy(() => import('./features/educator/pages/BecomeEducator'));
+
+// ============================================
+// SUSPENSE WRAPPER COMPONENT
+// ============================================
+const SuspenseWrapper = ({ children }) => (
+  <Suspense fallback={<FullPageLoader />}>
+    {children}
+  </Suspense>
+);
 
 // ============================================
 // LAYOUT WRAPPERS
@@ -104,23 +125,31 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Home />,
+        element: <SuspenseWrapper><Home /></SuspenseWrapper>,
       },
       {
         path: 'courses',
-        element: <Courses />,
+        element: <SuspenseWrapper><Courses /></SuspenseWrapper>,
       },
       {
         path: 'courses/:id',
-        element: <CourseDetail />,
+        element: <SuspenseWrapper><CourseDetail /></SuspenseWrapper>,
       },
       {
         path: 'live-sessions',
-        element: <LiveSessions />,
+        element: <SuspenseWrapper><LiveSessions /></SuspenseWrapper>,
       },
       {
         path: 'skill-exchange',
-        element: <SkillExchange />,
+        element: <SuspenseWrapper><SkillExchange /></SuspenseWrapper>,
+      },
+      {
+        path: 'skill-exchange/:id',
+        element: <SuspenseWrapper><SkillExchangeDetail /></SuspenseWrapper>,
+      },
+      {
+        path: 'become-educator',
+        element: <SuspenseWrapper><BecomeEducator /></SuspenseWrapper>,
       },
     ],
   },
@@ -132,24 +161,36 @@ const router = createBrowserRouter([
     element: <AuthLayout />,
     children: [
       {
-        path: 'sign-in',
-        element: <SignInPage />,
+        path: 'sign-in/*',
+        element: <SuspenseWrapper><SignInPage /></SuspenseWrapper>,
       },
       {
-        path: 'sign-up',
-        element: <SignUpPage />,
+        path: 'login',
+        element: <Navigate to="/sign-in" replace />,
+      },
+      {
+        path: 'sign-up/*',
+        element: <SuspenseWrapper><SignUpPage /></SuspenseWrapper>,
+      },
+      {
+        path: 'register',
+        element: <Navigate to="/sign-up" replace />,
+      },
+      {
+        path: 'select-role',
+        element: <SuspenseWrapper><RoleSelection /></SuspenseWrapper>,
       },
       {
         path: 'forgot-password',
-        element: <ForgotPassword />,
+        element: <SuspenseWrapper><ForgotPassword /></SuspenseWrapper>,
       },
       {
         path: 'reset-password/:token',
-        element: <ResetPassword />,
+        element: <SuspenseWrapper><ResetPassword /></SuspenseWrapper>,
       },
       {
         path: 'verify-email/:token',
-        element: <VerifyEmail />,
+        element: <SuspenseWrapper><VerifyEmail /></SuspenseWrapper>,
       },
     ],
   },
@@ -171,27 +212,31 @@ const router = createBrowserRouter([
     children: [
       {
         path: 'dashboard',
-        element: <Dashboard />,
+        element: <SuspenseWrapper><Dashboard /></SuspenseWrapper>,
       },
       {
         path: 'profile',
-        element: <Profile />,
+        element: <SuspenseWrapper><Profile /></SuspenseWrapper>,
       },
       {
         path: 'settings',
-        element: <Settings />,
+        element: <SuspenseWrapper><Settings /></SuspenseWrapper>,
       },
       {
         path: 'my-courses',
-        element: <MyCourses />,
+        element: <SuspenseWrapper><MyCourses /></SuspenseWrapper>,
       },
       {
         path: 'my-learning',
-        element: <MyLearning />,
+        element: <SuspenseWrapper><MyLearning /></SuspenseWrapper>,
       },
       {
         path: 'certificates',
-        element: <Certificates />,
+        element: <SuspenseWrapper><Certificates /></SuspenseWrapper>,
+      },
+      {
+        path: 'achievements',
+        element: <SuspenseWrapper><Achievements /></SuspenseWrapper>,
       },
     ],
   },
@@ -214,19 +259,19 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <AdminDashboard />,
+        element: <SuspenseWrapper><AdminDashboard /></SuspenseWrapper>,
       },
       {
         path: 'users',
-        element: <UserManagement />,
+        element: <SuspenseWrapper><UserManagement /></SuspenseWrapper>,
       },
       {
         path: 'courses',
-        element: <CourseModeration />,
+        element: <SuspenseWrapper><CourseModeration /></SuspenseWrapper>,
       },
       {
         path: 'analytics',
-        element: <Analytics />,
+        element: <SuspenseWrapper><Analytics /></SuspenseWrapper>,
       },
     ],
   },
@@ -249,15 +294,15 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <EducatorDashboard />,
+        element: <SuspenseWrapper><EducatorDashboard /></SuspenseWrapper>,
       },
       {
         path: 'courses/create',
-        element: <CourseUpload />,
+        element: <SuspenseWrapper><CourseUpload /></SuspenseWrapper>,
       },
       {
         path: 'quiz/create',
-        element: <QuizCreator />,
+        element: <SuspenseWrapper><QuizCreator /></SuspenseWrapper>,
       },
     ],
   },
@@ -267,11 +312,11 @@ const router = createBrowserRouter([
   // ============================================
   {
     path: 'unauthorized',
-    element: <Unauthorized />,
+    element: <SuspenseWrapper><Unauthorized /></SuspenseWrapper>,
   },
   {
     path: '*',
-    element: <NotFound />,
+    element: <SuspenseWrapper><NotFound /></SuspenseWrapper>,
   },
 ]);
 

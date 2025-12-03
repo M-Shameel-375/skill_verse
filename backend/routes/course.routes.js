@@ -36,17 +36,21 @@ const { authorize } = require('../middlewares/roleCheck.middleware');
 const { uploadSingleImage, uploadCourseFiles } = require('../middlewares/upload.middleware');
 const { validateCourse, validateMongoId, validatePagination, validate } = require('../middlewares/validation.middleware');
 
-// Public routes
+// Public routes - Specific routes MUST come before :id parameter routes
 router.get('/', validatePagination, validate, getAllCourses);
 router.get('/featured', getFeaturedCourses);
 router.get('/top-rated', getTopRatedCourses);
 router.get('/trending', getTrendingCourses);
+router.get('/popular', getTrendingCourses);  // Alias for popular courses
 router.get('/slug/:slug', optionalAuth, getCourseBySlug);
-router.get('/:id', validateMongoId('id'), validate, optionalAuth, getCourseById);
 
-// Protected routes - Educator/Admin
+// Protected routes - Educator/Admin (MUST come before /:id routes)
 router.post('/', protect, authorize('educator', 'admin'), uploadCourseFiles, validateCourse, validate, createCourse);
+router.get('/my-courses', protect, authorize('educator', 'admin'), getMyCoursesAsEducator);
 router.get('/my/courses', protect, authorize('educator', 'admin'), getMyCoursesAsEducator);
+
+// This route must be LAST among GET routes because :id matches anything
+router.get('/:id', validateMongoId('id'), validate, optionalAuth, getCourseById);
 
 // Protected routes - Course owner/Admin
 router.put('/:id', protect, validateMongoId('id'), validate, updateCourse);

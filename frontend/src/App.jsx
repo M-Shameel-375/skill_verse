@@ -2,7 +2,7 @@
 // MAIN APP COMPONENT
 // ============================================
 
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import Header from './features/shared/components/Header';
@@ -52,7 +52,11 @@ function App() {
   return (
     <HelmetProvider>
       <Provider store={store}>
-        <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+        <ClerkProvider 
+          publishableKey={PUBLISHABLE_KEY}
+          afterSignInUrl="/dashboard"
+          afterSignUpUrl="/select-role"
+        >
           {/* Toast Notifications */}
           <Toaster
             position="top-right"
@@ -81,7 +85,7 @@ function App() {
           />
 
           {/* Router */}
-          <RouterProvider router={router} />
+          <RouterProvider router={router} fallbackElement={<FullPageLoader />} future={{ v7_startTransition: true }} />
         </ClerkProvider>
       </Provider>
     </HelmetProvider>

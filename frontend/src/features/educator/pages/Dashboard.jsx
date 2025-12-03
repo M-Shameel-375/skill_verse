@@ -2,11 +2,12 @@
 // DASHBOARD PAGE
 // ============================================
 
-import React, { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
+import { useUser } from '@clerk/clerk-react';
 import {
   FaBook,
   FaCertificate,
@@ -20,31 +21,13 @@ import {
   FaUsers,
 } from 'react-icons/fa';
 import {
-  getEnrolledCourses,
-  selectEnrolledCourses,
-  selectCourseLoading,
-} from '../redux/slices/courseSlice';
-import {
-  getUpcomingSessions,
-  selectUpcomingSessions,
-} from '../redux/slices/sessionSlice';
-import {
-  getUserStatistics,
-  selectUserStatistics,
-  selectUserLoading,
-} from '../redux/slices/userSlice';
-import useAuth from '../hooks/useAuth';
-import config from '../config';
-import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from '../../../components/ui/Card';
-import { Button } from '../../../components/ui/Button';
-import { SkeletonLoader, CardSkeletonLoader } from '../../shared/components/Loader';
-import { formatDate, formatDuration } from '../../../utils/helpers';
+} from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 
 // ============================================
 // CONTINUE LEARNING CARD
@@ -127,7 +110,7 @@ const UpcomingSessionCard = ({ session }) => {
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <div className="flex items-center gap-1">
                 <FaClock />
-                <span>{formatDate(session.scheduledAt, 'MMM dd, yyyy')}</span>
+                <span>{new Date(session.scheduledAt).toLocaleDateString()}</span>
               </div>
               <div className="flex items-center gap-1">
                 <FaUsers />
@@ -193,26 +176,48 @@ const StatsCard = ({ title, value, icon, change, changeType }) => {
 // DASHBOARD PAGE COMPONENT
 // ============================================
 const Dashboard = () => {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user } = useUser();
   
-  const enrolledCourses = useSelector(selectEnrolledCourses);
-  const upcomingSessions = useSelector(selectUpcomingSessions);
-  const statistics = useSelector(selectUserStatistics);
-  const courseLoading = useSelector(selectCourseLoading);
-  const userLoading = useSelector(selectUserLoading);
+  // Mock data for now
+  const [enrolledCourses] = useState([
+    {
+      _id: '1',
+      title: 'Complete React Developer Course',
+      thumbnail: { url: 'https://via.placeholder.com/200x120' },
+      instructor: { name: 'John Doe' },
+      progress: 65,
+      completedLectures: 13,
+      totalLectures: 20,
+    },
+    {
+      _id: '2',
+      title: 'Node.js Masterclass',
+      thumbnail: { url: 'https://via.placeholder.com/200x120' },
+      instructor: { name: 'Jane Smith' },
+      progress: 30,
+      completedLectures: 6,
+      totalLectures: 20,
+    },
+  ]);
 
-  // ============================================
-  // FETCH DATA
-  // ============================================
-  useEffect(() => {
-    dispatch(getEnrolledCourses());
-    dispatch(getUpcomingSessions());
-    if (user) {
-      dispatch(getUserStatistics(user._id));
-    }
-  }, [dispatch, user]);
+  const [upcomingSessions] = useState([
+    {
+      _id: '1',
+      title: 'Live Q&A: React Best Practices',
+      instructor: { name: 'John Doe' },
+      scheduledAt: new Date(Date.now() + 86400000),
+      participants: Array(15),
+    },
+  ]);
+
+  const statistics = {
+    coursesCompleted: 5,
+    certificatesEarned: 3,
+    totalPoints: 2450,
+    currentStreak: 7,
+    learningHours: 45,
+  };
 
   // ============================================
   // GREETING MESSAGE
@@ -224,22 +229,19 @@ const Dashboard = () => {
     return 'Good evening';
   };
 
-  // ============================================
-  // RECENT BADGES
-  // ============================================
-  const recentBadges = user?.gamification?.badges?.slice(0, 4) || [];
+  const userName = user?.firstName || 'Learner';
 
   return (
     <>
       <Helmet>
-        <title>Dashboard | {config.app.name}</title>
+        <title>Dashboard | SkillVerse</title>
       </Helmet>
 
       <div className="space-y-8">
         {/* Welcome Section */}
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {getGreeting()}, {user?.name?.split(' ')[0]}! 👋
+            {getGreeting()}, {userName}! 👋
           </h1>
           <p className="text-gray-600">
             Welcome back to your learning dashboard. Let's continue your journey!
@@ -292,18 +294,14 @@ const Dashboard = () => {
                   Continue Learning
                 </h2>
                 <Link
-                  to={config.routes.myLearning}
+                  to="/my-learning"
                   className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
                 >
                   View All <FaArrowRight />
                 </Link>
               </div>
 
-              {courseLoading ? (
-                <div className="space-y-4">
-                  <SkeletonLoader className="h-24" count={3} />
-                </div>
-              ) : enrolledCourses.length === 0 ? (
+              {enrolledCourses.length === 0 ? (
                 <Card>
                   <CardContent className="p-6 text-center">
                     <div className="text-5xl mb-4">📚</div>
@@ -313,7 +311,7 @@ const Dashboard = () => {
                     <p className="text-gray-600 mb-4">
                       Start your learning journey by enrolling in a course
                     </p>
-                    <Button onClick={() => navigate(config.routes.courses)}>
+                    <Button onClick={() => navigate('/courses')}>
                       Explore Courses
                     </Button>
                   </CardContent>
@@ -334,7 +332,7 @@ const Dashboard = () => {
                   Upcoming Live Sessions
                 </h2>
                 <Link
-                  to={config.routes.liveSessions}
+                  to="/live-sessions"
                   className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
                 >
                   View All <FaArrowRight />
@@ -351,7 +349,7 @@ const Dashboard = () => {
                     <p className="text-gray-600 mb-4">
                       Check out available live sessions
                     </p>
-                    <Button onClick={() => navigate(config.routes.liveSessions)}>
+                    <Button onClick={() => navigate('/live-sessions')}>
                       Browse Sessions
                     </Button>
                   </CardContent>
@@ -426,14 +424,14 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/courses')}>
                     <FaBook className="mr-2 h-4 w-4" /> Browse Courses
                   </Button>
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/certificates')}>
                     <FaCertificate className="mr-2 h-4 w-4" /> View Certificates
                   </Button>
-                  <Button variant="outline" className="w-full justify-start">
-                    <FaChartLine className="mr-2 h-4 w-4" /> View Analytics
+                  <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/achievements')}>
+                    <FaTrophy className="mr-2 h-4 w-4" /> View Achievements
                   </Button>
                 </div>
               </CardContent>
@@ -445,15 +443,12 @@ const Dashboard = () => {
                 <CardTitle>Recent Achievements</CardTitle>
               </CardHeader>
               <CardContent>
-                {recentBadges.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    {recentBadges.map((badge) => (
-                      <AchievementBadge key={badge._id} badge={badge} />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-600">No recent achievements. Keep learning to earn badges!</p>
-                )}
+                <div className="grid grid-cols-2 gap-4">
+                  <AchievementBadge badge={{ icon: '🏆', name: 'First Steps', description: 'Complete first course' }} />
+                  <AchievementBadge badge={{ icon: '🔥', name: 'On Fire', description: '7-day streak' }} />
+                  <AchievementBadge badge={{ icon: '⭐', name: 'Quick Learner', description: '5 courses done' }} />
+                  <AchievementBadge badge={{ icon: '🎯', name: 'Focused', description: '10 hours this week' }} />
+                </div>
               </CardContent>
             </Card>
           </div>

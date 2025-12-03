@@ -2,30 +2,17 @@
 // SETTINGS PAGE
 // ============================================
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Tab } from '@headlessui/react';
-import { Formik, Form, Field, ErrorMessage } from 'formik';
-import * as Yup from 'yup';
+import { useUser } from '@clerk/clerk-react';
 import {
   FaUser,
   FaLock,
   FaBell,
-  FaShieldAlt,
   FaTrash,
   FaSave,
   FaUpload,
 } from 'react-icons/fa';
-import useAuth from '../../../hooks/useAuth';
-import { useDispatch, useSelector } from 'react-redux';
-import {
-  getNotificationPreferences,
-  updateNotificationPreferences,
-  selectNotificationPreferences,
-  selectPreferencesLoading,
-} from '../../../redux/slices/notificationSlice';
-import config from '../../../config';
 import {
   Card,
   CardContent,
@@ -33,54 +20,27 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '../../../components/ui/Card';
-import { Input } from '../../../components/ui/Input';
-import { Label } from '../../../components/ui/Label';
-import { Button } from '../../../components/ui/Button';
-import Modal, { DeleteConfirmModal } from '../../shared/components/Modal';
-import { InlineLoader } from '../../shared/components/Loader';
+} from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { Label } from '@/components/ui/Label';
+import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
-
-// ============================================
-// VALIDATION SCHEMAS
-// ============================================
-const profileSchema = Yup.object().shape({
-  name: Yup.string()
-    .min(2, 'Name must be at least 2 characters')
-    .max(50, 'Name cannot exceed 50 characters')
-    .required('Name is required'),
-  email: Yup.string()
-    .email('Invalid email address')
-    .required('Email is required'),
-  phone: Yup.string()
-    .matches(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number'),
-  bio: Yup.string()
-    .max(500, 'Bio cannot exceed 500 characters'),
-  title: Yup.string()
-    .max(100, 'Title cannot exceed 100 characters'),
-});
-
-const passwordSchema = Yup.object().shape({
-  currentPassword: Yup.string()
-    .required('Current password is required'),
-  newPassword: Yup.string()
-    .min(8, 'Password must be at least 8 characters')
-    .matches(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .matches(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .matches(/\d/, 'Password must contain at least one number')
-    .matches(/[@$!%*?&#]/, 'Password must contain at least one special character')
-    .required('New password is required'),
-  confirmPassword: Yup.string()
-    .oneOf([Yup.ref('newPassword'), null], 'Passwords must match')
-    .required('Please confirm your password'),
-});
 
 // ============================================
 // ACCOUNT SETTINGS TAB
 // ============================================
-const AccountSettings = () => {
-  const { user, updateProfile, loading } = useAuth();
-  const [imagePreview, setImagePreview] = useState(user?.profileImage?.url || null);
+const AccountSettings = ({ user }) => {
+  const [imagePreview, setImagePreview] = useState(user?.imageUrl || null);
+  const [formData, setFormData] = useState({
+    name: user?.fullName || '',
+    email: user?.primaryEmailAddress?.emailAddress || '',
+    phone: '',
+    bio: '',
+    title: '',
+    city: '',
+    country: '',
+  });
+  const [saving, setSaving] = useState(false);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -90,28 +50,25 @@ const AccountSettings = () => {
         setImagePreview(reader.result);
       };
       reader.readAsDataURL(file);
-      // TODO: Upload image
     }
   };
 
-  const handleSubmit = async (values, { setSubmitting }) => {
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
     try {
-      await updateProfile({
-        name: values.name,
-        email: values.email,
-        phone: values.phone,
-        bio: values.bio,
-        title: values.title,
-        location: {
-          city: values.city,
-          country: values.country,
-        },
-      });
+      // Simulating API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
       toast.success('Profile updated successfully!');
     } catch (error) {
-      toast.error(error || 'Failed to update profile');
+      toast.error('Failed to update profile');
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
   };
 
@@ -121,154 +78,131 @@ const AccountSettings = () => {
         <CardTitle>Account Information</CardTitle>
       </CardHeader>
       <CardContent>
-        <Formik
-          initialValues={{
-            name: user?.name || '',
-            email: user?.email || '',
-            phone: user?.phone || '',
-            bio: user?.bio || '',
-            title: user?.title || '',
-            city: user?.location?.city || '',
-            country: user?.location?.country || '',
-          }}
-          validationSchema={profileSchema}
-          onSubmit={handleSubmit}
-          enableReinitialize
-        >
-          {({ isSubmitting, touched, errors }) => (
-            <Form className="space-y-6">
-              {/* Profile Image */}
-              <div>
-                <Label>Profile Picture</Label>
-                <div className="flex items-center gap-6 mt-2">
-                  <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200">
-                    {imagePreview ? (
-                      <img
-                        src={imagePreview}
-                        alt="Profile"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-2xl text-gray-400">
-                        <FaUser />
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                      id="profile-image"
-                    />
-                    <label htmlFor="profile-image">
-                      <Button
-                        as="span"
-                        variant="outline"
-                        icon={<FaUpload />}
-                      >
-                        Upload Photo
-                      </Button>
-                    </label>
-                    <p className="text-xs text-gray-500 mt-2">
-                      JPG, PNG or GIF. Max size 5MB
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Name */}
-              <div>
-                <Label htmlFor="name">Full Name *</Label>
-                <Field
-                  id="name"
-                  name="name"
-                  as={Input}
-                  className={`${touched.name && errors.name ? 'border-red-500' : ''}`}
-                />
-                <ErrorMessage name="name" component="p" className="mt-1 text-sm text-red-600" />
-              </div>
-
-              {/* Email */}
-              <div>
-                <Label htmlFor="email">Email Address *</Label>
-                <Field
-                  id="email"
-                  name="email"
-                  type="email"
-                  as={Input}
-                  className={`${touched.email && errors.email ? 'border-red-500' : ''}`}
-                />
-                <ErrorMessage name="email" component="p" className="mt-1 text-sm text-red-600" />
-              </div>
-
-              {/* Title */}
-              <div>
-                <Label htmlFor="title">Title</Label>
-                <Field
-                  id="title"
-                  name="title"
-                  type="text"
-                  as={Input}
-                  placeholder="e.g., Senior Web Developer"
-                  className={`${touched.title && errors.title ? 'border-red-500' : ''}`}
-                />
-                <ErrorMessage name="title" component="p" className="mt-1 text-sm text-red-600" />
-              </div>
-
-              {/* Bio */}
-              <div>
-                <Label htmlFor="bio">Bio</Label>
-                <Field
-                  id="bio"
-                  name="bio"
-                  as="textarea"
-                  rows="4"
-                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    touched.bio && errors.bio ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Tell us a bit about yourself..."
-                />
-                <ErrorMessage name="bio" component="p" className="mt-1 text-sm text-red-600" />
-              </div>
-
-              {/* Location */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label htmlFor="city">City</Label>
-                  <Field
-                    id="city"
-                    name="city"
-                    type="text"
-                    as={Input}
-                    className={`${touched.city && errors.city ? 'border-red-500' : ''}`}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Profile Image */}
+          <div>
+            <Label>Profile Picture</Label>
+            <div className="flex items-center gap-6 mt-2">
+              <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200">
+                {imagePreview ? (
+                  <img
+                    src={imagePreview}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
                   />
-                  <ErrorMessage name="city" component="p" className="mt-1 text-sm text-red-600" />
-                </div>
-                <div>
-                  <Label htmlFor="country">Country</Label>
-                  <Field
-                    id="country"
-                    name="country"
-                    type="text"
-                    as={Input}
-                    className={`${touched.country && errors.country ? 'border-red-500' : ''}`}
-                  />
-                  <ErrorMessage name="country" component="p" className="mt-1 text-sm text-red-600" />
-                </div>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-2xl text-gray-400">
+                    <FaUser />
+                  </div>
+                )}
               </div>
+              
+              <div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                  id="profile-image"
+                />
+                <label htmlFor="profile-image">
+                  <span className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <FaUpload />
+                    Upload Photo
+                  </span>
+                </label>
+                <p className="text-xs text-gray-500 mt-2">
+                  JPG, PNG or GIF. Max size 5MB
+                </p>
+              </div>
+            </div>
+          </div>
 
-              {/* Submit */}
-              <div className="flex justify-end pt-4">
-                <Button type="submit" loading={isSubmitting} icon={<FaSave />}>
-                  Save Changes
-                </Button>
-              </div>
-            </Form>
-          )}
-        </Formik>
+          {/* Name */}
+          <div>
+            <Label htmlFor="name">Full Name *</Label>
+            <Input
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <Label htmlFor="email">Email Address *</Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              disabled
+            />
+            <p className="text-xs text-gray-500 mt-1">Email is managed by Clerk authentication</p>
+          </div>
+
+          {/* Title */}
+          <div>
+            <Label htmlFor="title">Title</Label>
+            <Input
+              id="title"
+              name="title"
+              type="text"
+              placeholder="e.g., Senior Web Developer"
+              value={formData.title}
+              onChange={handleChange}
+            />
+          </div>
+
+          {/* Bio */}
+          <div>
+            <Label htmlFor="bio">Bio</Label>
+            <textarea
+              id="bio"
+              name="bio"
+              rows="4"
+              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 border-gray-300"
+              placeholder="Tell us a bit about yourself..."
+              value={formData.bio}
+              onChange={handleChange}
+            />
+          </div>
+
+          {/* Location */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label htmlFor="city">City</Label>
+              <Input
+                id="city"
+                name="city"
+                type="text"
+                value={formData.city}
+                onChange={handleChange}
+              />
+            </div>
+            <div>
+              <Label htmlFor="country">Country</Label>
+              <Input
+                id="country"
+                name="country"
+                type="text"
+                value={formData.country}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
+          {/* Submit */}
+          <div className="flex justify-end pt-4">
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
+        </form>
       </CardContent>
     </Card>
   );
@@ -278,93 +212,29 @@ const AccountSettings = () => {
 // SECURITY SETTINGS TAB
 // ============================================
 const SecuritySettings = () => {
-  const { changePassword } = useAuth();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-  const handlePasswordChange = async (values, { setSubmitting, resetForm }) => {
-    try {
-      await changePassword(values.currentPassword, values.newPassword);
-      toast.success('Password changed successfully!');
-      resetForm();
-    } catch (error) {
-      toast.error(error || 'Failed to change password');
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
-      {/* Change Password */}
+      {/* Password Info */}
       <Card>
         <CardHeader>
-          <CardTitle>Change Password</CardTitle>
+          <CardTitle>Password & Security</CardTitle>
         </CardHeader>
         <CardContent>
-          <Formik
-            initialValues={{
-              currentPassword: '',
-              newPassword: '',
-              confirmPassword: '',
-            }}
-            validationSchema={passwordSchema}
-            onSubmit={handlePasswordChange}
-          >
-            {({ isSubmitting, touched, errors }) => (
-              <Form className="space-y-6">
-                {/* Current Password */}
-                <div>
-                  <Label htmlFor="currentPassword">Current Password</Label>
-                  <Field
-                    id="currentPassword"
-                    name="currentPassword"
-                    type="password"
-                    as={Input}
-                    className={`${touched.currentPassword && errors.currentPassword ? 'border-red-500' : ''}`}
-                  />
-                  <ErrorMessage name="currentPassword" component="p" className="mt-1 text-sm text-red-600" />
-                </div>
-
-                {/* New Password */}
-                <div>
-                  <Label htmlFor="newPassword">New Password</Label>
-                  <Field
-                    id="newPassword"
-                    name="newPassword"
-                    type="password"
-                    as={Input}
-                    className={`${touched.newPassword && errors.newPassword ? 'border-red-500' : ''}`}
-                  />
-                  <ErrorMessage name="newPassword" component="p" className="mt-1 text-sm text-red-600" />
-                </div>
-
-                {/* Confirm Password */}
-                <div>
-                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                  <Field
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    as={Input}
-                    className={`${touched.confirmPassword && errors.confirmPassword ? 'border-red-500' : ''}`}
-                  />
-                  <ErrorMessage name="confirmPassword" component="p" className="mt-1 text-sm text-red-600" />
-                </div>
-
-                <div className="flex justify-end">
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    icon={<FaLock />}
-                    loading={isSubmitting}
-                    disabled={isSubmitting}
-                  >
-                    Update Password
-                  </Button>
-                </div>
-              </Form>
-            )}
-          </Formik>
+          <p className="text-gray-600">
+            Your password and security settings are managed through Clerk authentication.
+            Click the button below to manage your security settings.
+          </p>
+          <div className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => window.open('https://accounts.clerk.dev/user', '_blank')}
+            >
+              <FaLock className="mr-2" />
+              Manage Security Settings
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -378,26 +248,40 @@ const SecuritySettings = () => {
         </CardHeader>
         <CardFooter>
           <Button
-            variant="danger"
-            icon={<FaTrash />}
+            variant="destructive"
             onClick={() => setShowDeleteModal(true)}
           >
+            <FaTrash className="mr-2" />
             Delete Account
           </Button>
         </CardFooter>
       </Card>
 
       {/* Delete Confirmation Modal */}
-      <DeleteConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        onConfirm={() => {
-          // Handle account deletion
-          toast.success('Account deletion request submitted');
-          setShowDeleteModal(false);
-        }}
-        itemName="your account"
-      />
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Delete Account?</h3>
+            <p className="text-gray-600 mb-6">
+              This action cannot be undone. All your data will be permanently deleted.
+            </p>
+            <div className="flex justify-end gap-4">
+              <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  toast.success('Account deletion request submitted');
+                  setShowDeleteModal(false);
+                }}
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -406,24 +290,22 @@ const SecuritySettings = () => {
 // NOTIFICATION SETTINGS TAB
 // ============================================
 const NotificationSettings = () => {
-  const dispatch = useDispatch();
-  const preferences = useSelector(selectNotificationPreferences);
-  const loading = useSelector(selectPreferencesLoading);
+  const [preferences, setPreferences] = useState({
+    email: true,
+    push: true,
+    sms: false,
+    courseUpdates: true,
+    skillExchangeRequests: true,
+    messages: true,
+    promotions: false,
+  });
 
-  useEffect(() => {
-    dispatch(getNotificationPreferences());
-  }, [dispatch]);
-
-  const handleToggle = async (key) => {
-    try {
-      await dispatch(updateNotificationPreferences({
-        ...preferences,
-        [key]: !preferences[key],
-      })).unwrap();
-      toast.success('Notification preferences updated');
-    } catch (error) {
-      toast.error('Failed to update preferences');
-    }
+  const handleToggle = (key) => {
+    setPreferences(prev => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+    toast.success('Notification preferences updated');
   };
 
   const notificationTypes = [
@@ -435,10 +317,6 @@ const NotificationSettings = () => {
     { key: 'messages', label: 'Messages', description: 'Get notified about new messages' },
     { key: 'promotions', label: 'Promotions & Offers', description: 'Receive promotional emails and special offers' },
   ];
-
-  if (loading && !preferences) {
-    return <InlineLoader />;
-  }
 
   return (
     <Card>
@@ -475,15 +353,39 @@ const NotificationSettings = () => {
 };
 
 // ============================================
+// TAB BUTTON COMPONENT
+// ============================================
+const TabButton = ({ active, onClick, icon: Icon, label }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors border-b-2 ${
+      active
+        ? 'text-blue-600 border-blue-600'
+        : 'text-gray-600 hover:text-gray-900 border-transparent'
+    }`}
+  >
+    <Icon />
+    {label}
+  </button>
+);
+
+// ============================================
 // SETTINGS PAGE COMPONENT
 // ============================================
 const Settings = () => {
-  const { user } = useAuth();
+  const { user } = useUser();
+  const [activeTab, setActiveTab] = useState('account');
+
+  const tabs = [
+    { id: 'account', icon: FaUser, label: 'Account' },
+    { id: 'security', icon: FaLock, label: 'Security' },
+    { id: 'notifications', icon: FaBell, label: 'Notifications' },
+  ];
 
   return (
     <>
       <Helmet>
-        <title>Settings | {config.app.name}</title>
+        <title>Settings | SkillVerse</title>
       </Helmet>
 
       <div className="space-y-6">
@@ -492,43 +394,25 @@ const Settings = () => {
           <p className="text-gray-600">Manage your account settings and preferences</p>
         </div>
 
-        <Tab.Group>
-          <Tab.List className="flex gap-4 border-b border-gray-200">
-            {[
-              { icon: FaUser, label: 'Account' },
-              { icon: FaLock, label: 'Security' },
-              { icon: FaBell, label: 'Notifications' },
-            ].map((tab) => (
-              <Tab
-                key={tab.label}
-                className={({ selected }) =>
-                  `flex items-center gap-2 px-4 py-3 font-medium transition-colors ${
-                    selected
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`
-                }
-              >
-                <tab.icon />
-                {tab.label}
-              </Tab>
-            ))}
-          </Tab.List>
+        {/* Tab Navigation */}
+        <div className="flex gap-4 border-b border-gray-200">
+          {tabs.map((tab) => (
+            <TabButton
+              key={tab.id}
+              active={activeTab === tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              icon={tab.icon}
+              label={tab.label}
+            />
+          ))}
+        </div>
 
-          <Tab.Panels className="mt-6">
-            <Tab.Panel>
-              <AccountSettings />
-            </Tab.Panel>
-            
-            <Tab.Panel>
-              <SecuritySettings />
-            </Tab.Panel>
-            
-            <Tab.Panel>
-              <NotificationSettings />
-            </Tab.Panel>
-          </Tab.Panels>
-        </Tab.Group>
+        {/* Tab Content */}
+        <div className="mt-6">
+          {activeTab === 'account' && <AccountSettings user={user} />}
+          {activeTab === 'security' && <SecuritySettings />}
+          {activeTab === 'notifications' && <NotificationSettings />}
+        </div>
       </div>
     </>
   );

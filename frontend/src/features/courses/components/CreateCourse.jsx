@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage, FieldArray } from 'formik';
 import * as Yup from 'yup';
 import { FaSave, FaArrowLeft } from 'react-icons/fa';
-import Button from '../common/Button';
-import Card from '../common/Card';
+import { Button } from '@/components/ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { createCourse } from '../../../api/courseApi';
+import toast from 'react-hot-toast';
 
 const validationSchema = Yup.object().shape({
   title: Yup.string().required('Title is required').min(5, 'Title must be at least 5 characters'),
@@ -209,11 +210,11 @@ const CreateCourse = () => {const navigate = useNavigate();
 
               {/* Submit */}
               <div className="flex justify-end gap-3">
-                <Button variant="outline" onClick={() => navigate(-1)}>
+                <Button type="button" variant="outline" onClick={() => navigate(-1)}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary" icon={<FaSave />} loading={isSubmitting}>
-                  Create Course
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? 'Creating...' : <><FaSave className="mr-2" /> Create Course</>}
                 </Button>
               </div>
             </Form>
