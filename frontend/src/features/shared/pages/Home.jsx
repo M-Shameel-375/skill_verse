@@ -6,6 +6,7 @@
 import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { useUser } from '@clerk/clerk-react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
 import {
@@ -202,10 +203,19 @@ const CourseCard = ({ course }) => {
 const Home = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { user, isLoaded, isSignedIn } = useUser();
   
   const featuredCourses = useSelector(selectFeaturedCourses);
   const popularCourses = useSelector(selectPopularCourses);
   const loading = useSelector(selectCourseLoading);
+
+  // Redirect ALL authenticated users to dashboard
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      // Authenticated users should not see the landing page
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isLoaded, isSignedIn, navigate]);
 
   // ============================================
   // FETCH DATA ON MOUNT

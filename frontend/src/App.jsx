@@ -5,13 +5,8 @@
 import React, { useEffect, Suspense } from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { Provider } from 'react-redux';
-import Header from './features/shared/components/Header';
-import Footer from './features/shared/components/Footer';
 import { Toaster } from 'react-hot-toast';
 import { FullPageLoader } from './features/shared/components/Loader';
-import useAuth from './hooks/useAuth';
-import useSocket from './hooks/useSocket';
-import NotificationHandler from './hooks/useNotification';
 import { HelmetProvider } from 'react-helmet-async';
 import store from './redux/store';
 import { ClerkProvider } from '@clerk/clerk-react';
@@ -54,8 +49,8 @@ function App() {
       <Provider store={store}>
         <ClerkProvider 
           publishableKey={PUBLISHABLE_KEY}
-          afterSignInUrl="/dashboard"
-          afterSignUpUrl="/select-role"
+          signInFallbackRedirectUrl="/dashboard"
+          signUpFallbackRedirectUrl="/select-role"
         >
           {/* Toast Notifications */}
           <Toaster

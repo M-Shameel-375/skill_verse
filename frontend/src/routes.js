@@ -8,6 +8,8 @@ import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
 import { createBrowserRouter, Outlet, Navigate } from 'react-router-dom';
 import config from './config';
 import { FullPageLoader } from './features/shared/components/Loader';
+import { GuestOnlyRoute, ProtectedRoute, RoleSelectionRoute } from './components/ProtectedRoute';
+import RootLayout from './components/RootLayout';
 
 // Layout Components
 import Header from './features/shared/components/Header';
@@ -116,6 +118,9 @@ const AuthLayout = () => (
 // ROUTER CONFIGURATION
 // ============================================
 const router = createBrowserRouter([
+  {
+    element: <RootLayout />,
+    children: [
   // ============================================
   // PUBLIC ROUTES (Main Layout)
   // ============================================
@@ -162,7 +167,11 @@ const router = createBrowserRouter([
     children: [
       {
         path: 'sign-in/*',
-        element: <SuspenseWrapper><SignInPage /></SuspenseWrapper>,
+        element: (
+          <GuestOnlyRoute>
+            <SuspenseWrapper><SignInPage /></SuspenseWrapper>
+          </GuestOnlyRoute>
+        ),
       },
       {
         path: 'login',
@@ -170,7 +179,11 @@ const router = createBrowserRouter([
       },
       {
         path: 'sign-up/*',
-        element: <SuspenseWrapper><SignUpPage /></SuspenseWrapper>,
+        element: (
+          <GuestOnlyRoute>
+            <SuspenseWrapper><SignUpPage /></SuspenseWrapper>
+          </GuestOnlyRoute>
+        ),
       },
       {
         path: 'register',
@@ -178,19 +191,35 @@ const router = createBrowserRouter([
       },
       {
         path: 'select-role',
-        element: <SuspenseWrapper><RoleSelection /></SuspenseWrapper>,
+        element: (
+          <RoleSelectionRoute>
+            <SuspenseWrapper><RoleSelection /></SuspenseWrapper>
+          </RoleSelectionRoute>
+        ),
       },
       {
         path: 'forgot-password',
-        element: <SuspenseWrapper><ForgotPassword /></SuspenseWrapper>,
+        element: (
+          <GuestOnlyRoute>
+            <SuspenseWrapper><ForgotPassword /></SuspenseWrapper>
+          </GuestOnlyRoute>
+        ),
       },
       {
         path: 'reset-password/:token',
-        element: <SuspenseWrapper><ResetPassword /></SuspenseWrapper>,
+        element: (
+          <GuestOnlyRoute>
+            <SuspenseWrapper><ResetPassword /></SuspenseWrapper>
+          </GuestOnlyRoute>
+        ),
       },
       {
         path: 'verify-email/:token',
-        element: <SuspenseWrapper><VerifyEmail /></SuspenseWrapper>,
+        element: (
+          <GuestOnlyRoute>
+            <SuspenseWrapper><VerifyEmail /></SuspenseWrapper>
+          </GuestOnlyRoute>
+        ),
       },
     ],
   },
@@ -317,6 +346,8 @@ const router = createBrowserRouter([
   {
     path: '*',
     element: <SuspenseWrapper><NotFound /></SuspenseWrapper>,
+  },
+    ],
   },
 ]);
 

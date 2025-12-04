@@ -3,7 +3,7 @@
 // ============================================
 // This page allows users to select their role after signing up
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { Helmet } from 'react-helmet-async';
@@ -147,6 +147,37 @@ const RoleSelection = () => {
   const { user, isLoaded } = useUser();
   const [selectedRole, setSelectedRole] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [existingRole, setExistingRole] = useState(null);
+  const [canChangeRole, setCanChangeRole] = useState(true);
+  const [loading, setLoading] = useState(true);
+
+  // Check if user already has a role from backend
+  useEffect(() => {
+    const checkExistingRole = async () => {
+      if (!isLoaded || !user) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const storedUser = localStorage.getItem('skillverse_user');
+        
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          if (userData.role && userData.role !== 'learner') {
+            setExistingRole(userData.role);
+            setCanChangeRole(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking role:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkExistingRole();
+  }, [isLoaded, user]);
 
   // ============================================
   // HANDLE ROLE SELECTION
@@ -174,11 +205,17 @@ const RoleSelection = () => {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to update role');
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        // If role already set, redirect to dashboard
+        if (data.message && data.message.includes('Role already set')) {
+          toast.error('Role already set. Redirecting to dashboard...');
+          setTimeout(() => navigate('/dashboard'), 1500);
+          return;
+        }
+        throw new Error(data.message || 'Failed to update role');
+      }
 
       // Save user data to localStorage
       localStorage.setItem('skillverse_user', JSON.stringify(data.data));
@@ -190,7 +227,7 @@ const RoleSelection = () => {
       navigate('/dashboard');
     } catch (error) {
       console.error('Role selection error:', error);
-      toast.error('Failed to set role. Please try again.');
+      toast.error(error.message || 'Failed to set role. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -199,6 +236,19 @@ const RoleSelection = () => {
   // ============================================
   // RENDER
   // ============================================
+  
+  // Show loading while checking role
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking your profile...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <Helmet>
@@ -208,62 +258,101 @@ const RoleSelection = () => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-4">
         <div className="max-w-5xl mx-auto">
           {/* Header */}
+          {/* Back to Home Button */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mb-6"
+          >
+            <button
+              onClick={() => navigate('/')}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <FaArrowRight className="rotate-180" />
+              Back to Home
+            </button>
+          </motion.div>
+
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-12"
           >
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              Welcome to SkillVerse! 🎉
-            </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Choose how you want to use the platform. Don't worry, you can always change this later!
-            </p>
+            {existingRole ? (
+              <>
+                <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                  Your Role: {roleOptions.find(r => r.id === existingRole)?.title} 🎯
+                </h1>
+                <p className="text-xl text-red-600 max-w-2xl mx-auto font-semibold">
+                  You cannot change your role once it's set. Contact support if you need to change it.
+                </p>
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="mt-6 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
+                >
+                  Go to Dashboard
+                  <FaArrowRight />
+                </button>
+              </>
+            ) : (
+              <>
+                <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                  Welcome to SkillVerse! 🎉
+                </h1>
+                <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                  Choose how you want to use the platform. You cannot change this later!
+                </p>
+              </>
+            )}
           </motion.div>
 
-          {/* Role Cards */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
-          >
-            {roleOptions.map((role) => (
-              <RoleCard
-                key={role.id}
-                role={role}
-                isSelected={selectedRole === role.id}
-                onSelect={setSelectedRole}
-              />
-            ))}
-          </motion.div>
+          {/* Role Cards - Only show if no existing role */}
+          {!existingRole && (
+            <>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12"
+              >
+                {roleOptions.map((role) => (
+                  <RoleCard
+                    key={role.id}
+                    role={role}
+                    isSelected={selectedRole === role.id}
+                    onSelect={setSelectedRole}
+                  />
+                ))}
+              </motion.div>
 
-          {/* Continue Button */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="text-center"
-          >
-            <Button
-              onClick={handleContinue}
-              disabled={!selectedRole || isSubmitting}
-              className="px-8 py-4 text-lg font-semibold"
-            >
-              {isSubmitting ? (
-                'Setting up...'
-              ) : (
-                <>
-                  Continue as {selectedRole ? roleOptions.find(r => r.id === selectedRole)?.title : '...'} 
-                  <FaArrowRight className="ml-2" />
-                </>
-              )}
-            </Button>
+              {/* Continue Button */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-center"
+              >
+                <Button
+                  onClick={handleContinue}
+                  disabled={!selectedRole || isSubmitting}
+                  className="px-8 py-4 text-lg font-semibold"
+                >
+                  {isSubmitting ? (
+                    'Setting up...'
+                  ) : (
+                    <>
+                      Continue as {selectedRole ? roleOptions.find(r => r.id === selectedRole)?.title : '...'} 
+                      <FaArrowRight className="ml-2" />
+                    </>
+                  )}
+                </Button>
 
-            <p className="mt-4 text-sm text-gray-500">
-              You can change your role anytime from your profile settings
-            </p>
-          </motion.div>
+                <p className="mt-4 text-sm text-red-500 font-semibold">
+                  ⚠️ Warning: You cannot change your role after selection!
+                </p>
+              </motion.div>
+            </>
+          )}
         </div>
       </div>
     </>

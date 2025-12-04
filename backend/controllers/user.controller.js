@@ -661,6 +661,11 @@ exports.updateUserRole = asyncHandler(async (req, res) => {
   });
 
   if (user) {
+    // PREVENT ROLE CHANGES - Role can only be set once!
+    if (user.role && user.role !== 'learner') {
+      throw ApiError.badRequest(`Role already set to ${user.role}. Cannot change role once selected. Contact support if you need to change your role.`);
+    }
+
     // Update existing user
     user.role = role;
     if (clerkId) user.clerkId = clerkId;

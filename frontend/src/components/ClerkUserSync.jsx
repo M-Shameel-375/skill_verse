@@ -6,7 +6,6 @@
 
 import { useEffect, useState } from 'react';
 import { useUser, useAuth } from '@clerk/clerk-react';
-import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import config from '../config';
 import { setClerkTokenGetter } from '../api/axios';
@@ -14,8 +13,6 @@ import { setClerkTokenGetter } from '../api/axios';
 const ClerkUserSync = ({ children }) => {
   const { user, isLoaded: userLoaded, isSignedIn } = useUser();
   const { getToken } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
   const [synced, setSynced] = useState(false);
   const [dbUser, setDbUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,21 +55,7 @@ const ClerkUserSync = ({ children }) => {
 
         // Store user data in localStorage for the app to use
         localStorage.setItem('skillverse_user', JSON.stringify(userData));
-        localStorage.setItem('skillverse_user_role', userData.role);
-
-        // If user has no role selected yet (first time), redirect to role selection
-        if (!userData.role || userData.role === 'learner') {
-          // Check if this is a new user (created just now)
-          const createdAt = new Date(userData.createdAt);
-          const now = new Date();
-          const isNewUser = (now - createdAt) < 60000; // Within 1 minute
-
-          if (isNewUser && location.pathname !== '/select-role') {
-            // New user, redirect to role selection
-            navigate('/select-role');
-            return;
-          }
-        }
+        localStorage.setItem('skillverse_user_role', userData.role || 'learner');
 
         console.log('✅ User synced with MongoDB:', userData.role);
       } catch (error) {
@@ -85,7 +68,7 @@ const ClerkUserSync = ({ children }) => {
     };
 
     syncUser();
-  }, [userLoaded, isSignedIn, user, navigate, location.pathname, getToken]);
+  }, [userLoaded, isSignedIn, user, getToken]);
 
   // Show loading while syncing
   if (loading && isSignedIn) {
