@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
-import { FaSave, FaArrowLeft } from 'react-icons/fa';
+import { FaSave, FaArrowLeft, FaSpinner } from 'react-icons/fa';
 import { Button } from '../../../../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/Card';
+import { createSkillExchange, searchSkills } from '@/api/skillExchangeApi';
 import toast from 'react-hot-toast';
 
 const validationSchema = Yup.object().shape({
@@ -20,27 +21,32 @@ const validationSchema = Yup.object().shape({
 
 const CreateExchange = () => {
   const navigate = useNavigate();
+  const [skills, setSkills] = useState([
+    'React', 'Vue.js', 'Angular', 'JavaScript', 'TypeScript',
+    'Node.js', 'Python', 'Java', 'C++', 'Go', 'Rust', 'SQL',
+    'MongoDB', 'UI/UX Design', 'Graphic Design', 'SEO',
+    'Digital Marketing', 'Content Writing',
+  ]);
+  const [loadingSkills, setLoadingSkills] = useState(false);
 
-  const skills = [
-    'React',
-    'Vue.js',
-    'Angular',
-    'JavaScript',
-    'TypeScript',
-    'Node.js',
-    'Python',
-    'Java',
-    'C++',
-    'Go',
-    'Rust',
-    'SQL',
-    'MongoDB',
-    'UI/UX Design',
-    'Graphic Design',
-    'SEO',
-    'Digital Marketing',
-    'Content Writing',
-  ];
+  // Try to fetch skills from API
+  useEffect(() => {
+    const fetchSkills = async () => {
+      try {
+        setLoadingSkills(true);
+        const response = await searchSkills({});
+        if (response?.data?.skills) {
+          setSkills(response.data.skills.map(s => s.name || s));
+        }
+      } catch (error) {
+        // Keep default skills if API fails
+        console.log('Using default skills list');
+      } finally {
+        setLoadingSkills(false);
+      }
+    };
+    fetchSkills();
+  }, []);
 
   const initialValues = {
     title: '',
@@ -55,11 +61,25 @@ const CreateExchange = () => {
 
   const handleSubmit = async (values, { setSubmitting }) => {
     try {
-      console.log('Creating exchange:', values);
+      await createSkillExchange({
+        title: values.title,
+        description: values.description,
+        offeredSkill: {
+          name: values.offering,
+          description: values.offeringDetails,
+        },
+        desiredSkill: {
+          name: values.seeking,
+          description: values.seekingDetails,
+        },
+        estimatedDuration: parseInt(values.duration.split('-')[0]) * 60, // Convert to minutes
+        availability: values.availability,
+      });
       toast.success('Exchange created successfully!');
       navigate('/skill-exchange');
     } catch (error) {
-      toast.error('Failed to create exchange');
+      console.error('Failed to create exchange:', error);
+      toast.error(error?.response?.data?.message || 'Failed to create exchange');
     } finally {
       setSubmitting(false);
     }

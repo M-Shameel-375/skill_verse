@@ -19,6 +19,9 @@ import {
   FaCalendar,
   FaUsers,
   FaSpinner,
+  FaDownload,
+  FaFilePdf,
+  FaRobot,
 } from 'react-icons/fa';
 import {
   Card,
@@ -31,6 +34,9 @@ import { Button } from '@/components/ui/Button';
 import { getEnrolledCourses } from '@/api/courseApi';
 import { getUserStatistics, getUserCertificates } from '@/api/userApi';
 import { getMyBadges } from '@/api/badgeApi';
+import { exportProgressPDF, exportProgressJSON } from '@/api/analyticsApi';
+import AIRecommendations from '../components/AIRecommendations';
+import toast from 'react-hot-toast';
 
 // ============================================
 // CONTINUE LEARNING CARD
@@ -128,6 +134,35 @@ const LearnerDashboard = ({ user: dbUser }) => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [exportingPDF, setExportingPDF] = useState(false);
+  const [exportingJSON, setExportingJSON] = useState(false);
+
+  // Export progress report handler
+  const handleExportPDF = async () => {
+    try {
+      setExportingPDF(true);
+      await exportProgressPDF();
+      toast.success('Progress report downloaded successfully!');
+    } catch (err) {
+      console.error('Export PDF error:', err);
+      toast.error('Failed to download report. Please try again.');
+    } finally {
+      setExportingPDF(false);
+    }
+  };
+
+  const handleExportJSON = async () => {
+    try {
+      setExportingJSON(true);
+      await exportProgressJSON();
+      toast.success('Progress data exported successfully!');
+    } catch (err) {
+      console.error('Export JSON error:', err);
+      toast.error('Failed to export data. Please try again.');
+    } finally {
+      setExportingJSON(false);
+    }
+  };
 
   // Fetch dashboard data
   const fetchDashboardData = useCallback(async () => {
@@ -346,6 +381,9 @@ const LearnerDashboard = ({ user: dbUser }) => {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* AI Recommendations Section */}
+                <AIRecommendations />
               </div>
 
               {/* Right Column - Quick Actions */}
@@ -367,6 +405,49 @@ const LearnerDashboard = ({ user: dbUser }) => {
                       </Button>
                       <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/skill-exchange')}>
                         <FaUsers className="mr-2 h-4 w-4" /> Skill Exchange
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Export Progress Report Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FaDownload className="h-4 w-4" />
+                      Export Progress
+                    </CardTitle>
+                    <CardDescription>
+                      Download your learning progress report
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-start" 
+                        onClick={handleExportPDF}
+                        disabled={exportingPDF}
+                      >
+                        {exportingPDF ? (
+                          <FaSpinner className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <FaFilePdf className="mr-2 h-4 w-4 text-red-500" />
+                        )}
+                        {exportingPDF ? 'Generating PDF...' : 'Download PDF Report'}
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-start" 
+                        onClick={handleExportJSON}
+                        disabled={exportingJSON}
+                      >
+                        {exportingJSON ? (
+                          <FaSpinner className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <FaDownload className="mr-2 h-4 w-4 text-blue-500" />
+                        )}
+                        {exportingJSON ? 'Exporting...' : 'Export as JSON'}
                       </Button>
                     </div>
                   </CardContent>

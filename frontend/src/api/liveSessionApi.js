@@ -225,7 +225,44 @@ export const getSessionMessages = (sessionId) => {
  * @returns {Promise}
  */
 export const getAgoraToken = (sessionId, role = 'audience') => {
-  return axios.post(`${SESSION_ENDPOINTS.GET_TOKEN}/${sessionId}`, { role });
+  return axios.get(`/live-sessions/${sessionId}/video-token`, { params: { role } });
+};
+
+// ============================================
+// GET VIDEO SERVICE STATUS
+// ============================================
+/**
+ * Get video service configuration status
+ * @returns {Promise}
+ */
+export const getVideoServiceStatus = () => {
+  return axios.get('/live-sessions/video-status');
+};
+
+// ============================================
+// CREATE MEETING ROOM
+// ============================================
+/**
+ * Create meeting room for a session (generates Agora channel)
+ * @param {string} sessionId - Session ID
+ * @returns {Promise}
+ */
+export const createMeetingRoom = (sessionId) => {
+  return axios.post(`/live-sessions/${sessionId}/meeting-room`);
+};
+
+// ============================================
+// SET MEETING LINK (FALLBACK)
+// ============================================
+/**
+ * Set external meeting link (Zoom, Google Meet, etc.)
+ * @param {string} sessionId - Session ID
+ * @param {string} meetingLink - External meeting URL
+ * @param {string} platform - Platform name (zoom, google-meet, etc.)
+ * @returns {Promise}
+ */
+export const setMeetingLink = (sessionId, meetingLink, platform = 'custom') => {
+  return axios.put(`/live-sessions/${sessionId}/meeting-link`, { meetingLink, platform });
 };
 
 // ============================================
@@ -313,6 +350,9 @@ const liveSessionApi = {
   sendSessionMessage,
   getSessionMessages,
   getAgoraToken,
+  getVideoServiceStatus,
+  createMeetingRoom,
+  setMeetingLink,
   scheduleSession,
   rescheduleSession,
   cancelSession,

@@ -3,7 +3,7 @@
 // ============================================
 // Detailed view of a skill exchange
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { Helmet } from 'react-helmet-async';
@@ -42,6 +42,8 @@ import {
   CardTitle,
 } from '@/components/ui/Card';
 import { motion } from 'framer-motion';
+import { getExchangeById } from '@/api/skillExchangeApi';
+import toast from 'react-hot-toast';
 
 const SkillExchangeDetail = () => {
   const { id } = useParams();
@@ -51,142 +53,84 @@ const SkillExchangeDetail = () => {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [exchange, setExchange] = useState(null);
+  const [error, setError] = useState(null);
 
-  // Mock data for demonstration
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setExchange({
-        _id: id,
-        title: 'React.js for Python Programming',
-        description:
-          'Looking to exchange my React.js expertise for Python programming skills. I can teach modern React with hooks, Redux, and Next.js. In return, I want to learn Python for data science and automation.',
-        status: 'in-progress',
-        matchScore: 92,
-        requester: {
-          _id: '1',
-          name: 'Alex Johnson',
-          profileImage: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alex',
-          rating: 4.8,
-          completedExchanges: 12,
-          skills: ['React', 'JavaScript', 'TypeScript', 'Node.js'],
-        },
-        provider: {
-          _id: '2',
-          name: 'Sarah Chen',
-          profileImage: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah',
-          rating: 4.9,
-          completedExchanges: 18,
-          skills: ['Python', 'Data Science', 'Machine Learning', 'Django'],
-        },
-        offeredSkill: {
-          name: 'React.js',
-          level: 'advanced',
-          description:
-            'Modern React development with hooks, context, and state management',
-        },
-        requestedSkill: {
-          name: 'Python',
-          level: 'intermediate',
-          description:
-            'Python for data science, automation, and backend development',
-        },
-        objectives: [
-          'Master Python fundamentals',
-          'Learn data manipulation with Pandas',
-          'Build automation scripts',
-          'Introduction to Machine Learning',
-        ],
-        progress: {
-          requesterProgress: 45,
-          providerProgress: 52,
-          overallProgress: 48,
-        },
-        sessions: [
-          {
-            sessionNumber: 1,
-            scheduledAt: new Date('2024-12-01T10:00:00'),
-            status: 'completed',
-            topic: 'Python Basics & Setup',
-            duration: 60,
+  // Fetch exchange data from API
+  const fetchExchange = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await getExchangeById(id);
+      const data = response?.data?.exchange || response?.data;
+      
+      if (data) {
+        // Transform API data to match component expected format
+        setExchange({
+          _id: data._id || id,
+          title: data.title || `${data.offeredSkill?.name || 'Skill'} for ${data.desiredSkill?.name || 'Skill'}`,
+          description: data.description || '',
+          status: data.status || 'pending',
+          matchScore: data.matchScore || 0,
+          requester: {
+            _id: data.requester?._id || data.requesterId,
+            name: data.requester?.name || 'Unknown User',
+            profileImage: data.requester?.avatar?.url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.requester?.name || 'user'}`,
+            rating: data.requester?.rating || 0,
+            completedExchanges: data.requester?.completedExchanges || 0,
+            skills: data.requester?.skills || [],
           },
-          {
-            sessionNumber: 2,
-            scheduledAt: new Date('2024-12-03T10:00:00'),
-            status: 'completed',
-            topic: 'React Components & Props',
-            duration: 55,
+          provider: data.provider ? {
+            _id: data.provider?._id,
+            name: data.provider?.name || 'Unknown User',
+            profileImage: data.provider?.avatar?.url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.provider?.name || 'provider'}`,
+            rating: data.provider?.rating || 0,
+            completedExchanges: data.provider?.completedExchanges || 0,
+            skills: data.provider?.skills || [],
+          } : null,
+          offeredSkill: {
+            name: data.offeredSkill?.name || data.offeredSkill || 'N/A',
+            level: data.offeredSkill?.level || 'intermediate',
+            description: data.offeredSkill?.description || '',
           },
-          {
-            sessionNumber: 3,
-            scheduledAt: new Date('2024-12-05T10:00:00'),
-            status: 'scheduled',
-            topic: 'Data Types & Functions',
-            duration: 60,
+          requestedSkill: {
+            name: data.desiredSkill?.name || data.desiredSkill || data.requestedSkill?.name || 'N/A',
+            level: data.desiredSkill?.level || 'intermediate',
+            description: data.desiredSkill?.description || '',
           },
-        ],
-        milestones: [
-          {
-            title: 'Python Environment Setup',
-            status: 'completed',
-            completedAt: new Date('2024-12-01'),
+          objectives: data.objectives || [],
+          progress: data.progress || {
+            requesterProgress: 0,
+            providerProgress: 0,
+            overallProgress: 0,
           },
-          {
-            title: 'Basic Syntax & Data Types',
-            status: 'completed',
-            completedAt: new Date('2024-12-02'),
-          },
-          {
-            title: 'Functions & Modules',
-            status: 'in-progress',
-            targetDate: new Date('2024-12-08'),
-          },
-          {
-            title: 'Object-Oriented Python',
-            status: 'pending',
-            targetDate: new Date('2024-12-15'),
-          },
-        ],
-        messages: [
-          {
-            _id: '1',
-            sender: { _id: '1', name: 'Alex Johnson' },
-            message: 'Hey! Ready for our next session?',
-            createdAt: new Date('2024-12-03T09:30:00'),
-          },
-          {
-            _id: '2',
-            sender: { _id: '2', name: 'Sarah Chen' },
-            message:
-              'Yes! I prepared some exercises for React hooks. Also, here are the resources for our Python session.',
-            createdAt: new Date('2024-12-03T09:32:00'),
-          },
-        ],
-        sharedResources: [
-          {
-            title: 'Python Crash Course PDF',
-            type: 'document',
-            sharedBy: { name: 'Sarah Chen' },
-            uploadedAt: new Date('2024-12-01'),
-          },
-          {
-            title: 'React Official Tutorial',
-            type: 'link',
-            url: 'https://react.dev',
-            sharedBy: { name: 'Alex Johnson' },
-            uploadedAt: new Date('2024-12-01'),
-          },
-        ],
-        estimatedDuration: 20,
-        actualDuration: 8,
-        preferredPlatform: 'zoom',
-        meetingLink: 'https://zoom.us/j/123456789',
-        createdAt: new Date('2024-11-28'),
-        startedAt: new Date('2024-12-01'),
-      });
+          sessions: data.sessions || [],
+          milestones: data.milestones || [],
+          messages: data.messages || [],
+          sharedResources: data.sharedResources || [],
+          estimatedDuration: data.estimatedDuration || 0,
+          actualDuration: data.actualDuration || 0,
+          preferredPlatform: data.preferredPlatform || 'zoom',
+          meetingLink: data.meetingLink || '',
+          createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+          startedAt: data.startedAt ? new Date(data.startedAt) : null,
+        });
+      } else {
+        setError('Exchange not found');
+      }
+    } catch (err) {
+      console.error('Failed to fetch exchange:', err);
+      setError('Failed to load exchange details');
+      toast.error('Failed to load exchange details');
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   }, [id]);
+
+  useEffect(() => {
+    if (id) {
+      fetchExchange();
+    }
+  }, [id, fetchExchange]);
 
   const getStatusColor = (status) => {
     const colors = {

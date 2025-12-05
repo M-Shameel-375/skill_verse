@@ -41,8 +41,10 @@ router.get('/search', searchUsers);
 router.get('/top-educators', getTopEducators);
 router.post('/sync', syncUser); // Sync user from Clerk to MongoDB
 router.put('/role', updateUserRole); // Role selection endpoint (for Clerk)
-router.get('/:id', getUserProfile);
+
+// These must come AFTER specific routes to avoid catching them
 router.get('/:id/stats', getUserStats);
+router.get('/:id', getUserProfile);
 
 // Protected routes
 router.use(protect);

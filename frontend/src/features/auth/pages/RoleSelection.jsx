@@ -17,6 +17,8 @@ import {
 } from 'react-icons/fa';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
+import axios from '@/api/axios';
+import config from '@/config';
 
 // ============================================
 // ROLE OPTIONS
@@ -188,34 +190,38 @@ const RoleSelection = () => {
       return;
     }
 
+    if (!user) {
+      toast.error('User not logged in. Please sign in first.');
+      navigate('/sign-in');
+      return;
+    }
+
+    const email = user.primaryEmailAddress?.emailAddress;
+    if (!email) {
+      toast.error('Could not get user email. Please try again.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Call backend API to update user role
-      const response = await fetch('http://localhost:5000/api/v1/users/role', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          clerkId: user?.id,
-          email: user?.primaryEmailAddress?.emailAddress,
-          name: user?.fullName || user?.firstName,
-          role: selectedRole,
-        }),
+      console.log('Sending role selection:', {
+        clerkId: user.id,
+        email: email,
+        name: user.fullName || user.firstName || email.split('@')[0],
+        role: selectedRole,
       });
 
-      const data = await response.json();
+      // Call backend API to update user role
+      const response = await axios.put('/users/role', {
+        clerkId: user.id,
+        email: email,
+        name: user.fullName || user.firstName || email.split('@')[0],
+        role: selectedRole,
+      });
 
-      if (!response.ok) {
-        // If role already set, redirect to dashboard
-        if (data.message && data.message.includes('Role already set')) {
-          toast.error('Role already set. Redirecting to dashboard...');
-          setTimeout(() => navigate('/dashboard'), 1500);
-          return;
-        }
-        throw new Error(data.message || 'Failed to update role');
-      }
+      const data = response.data;
+      console.log('Role selection response:', data);
 
       // Save user data to localStorage
       localStorage.setItem('skillverse_user', JSON.stringify(data.data));
@@ -227,7 +233,16 @@ const RoleSelection = () => {
       navigate('/dashboard');
     } catch (error) {
       console.error('Role selection error:', error);
-      toast.error(error.message || 'Failed to set role. Please try again.');
+      console.error('Error response:', error.response?.data);
+      
+      // Check if role already set
+      if (error.response?.data?.message?.includes('Role already set')) {
+        toast.error('Role already set. Redirecting to dashboard...');
+        setTimeout(() => navigate('/dashboard'), 1500);
+        return;
+      }
+      
+      toast.error(error.response?.data?.message || 'Failed to set role. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

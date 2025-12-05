@@ -1,16 +1,75 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { FaPaperPlane, FaPhone, FaVideo, FaEllipsisV, FaSmile, FaPaperclip } from 'react-icons/fa';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { FaPaperPlane, FaPhone, FaVideo, FaEllipsisV, FaSmile, FaPaperclip, FaSpinner } from 'react-icons/fa';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/Card';
+import { getExchangeChat, getMessages, sendMessage } from '@/api/chatApi';
+import { useUser } from '@clerk/clerk-react';
 import toast from 'react-hot-toast';
 
-const ExchangeChat = ({ matchId = '1' }) => {
-  const [messages, setMessages] = useState([
-    { id: 1, sender: 'Sarah Lee', avatar: 'https://i.pravatar.cc/150?img=5', message: 'Hi! I want to exchange web design for Python tutoring', timestamp: '2:30 PM', isOwn: false },
-    { id: 2, sender: 'You', avatar: 'https://i.pravatar.cc/150?img=2', message: 'That sounds great! I have 5 years Python experience', timestamp: '2:31 PM', isOwn: true },
-    { id: 3, sender: 'Sarah Lee', avatar: 'https://i.pravatar.cc/150?img=5', message: 'Perfect! When can we start?', timestamp: '2:32 PM', isOwn: false },
-  ]);
+const ExchangeChat = ({ matchId = '1', partnerInfo = null }) => {
+  const { user } = useUser();
+  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
+  const [partner, setPartner] = useState(partnerInfo || {
+    name: 'Partner',
+    avatar: 'https://i.pravatar.cc/150?img=5',
+    skill: 'Skill Exchange',
+  });
   const messagesEndRef = useRef(null);
+
+  // Fetch chat data
+  const fetchChat = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Get or create chat for this exchange
+      const chatRes = await getExchangeChat(matchId);
+      const chatData = chatRes?.data;
+      
+      if (chatData) {
+        setConversationId(chatData._id || chatData.conversationId);
+        
+        // Set partner info from chat data if available
+        if (chatData.partner) {
+          setPartner({
+            name: chatData.partner.name || 'Partner',
+            avatar: chatData.partner.avatar?.url || `https://i.pravatar.cc/150?img=${matchId}`,
+            skill: chatData.partner.offeredSkill || 'Skill Exchange',
+          });
+        }
+
+        // Get messages
+        const messagesRes = await getMessages(chatData._id || matchId);
+        const messagesData = messagesRes?.data?.messages || messagesRes?.data || [];
+        
+        // Transform to component format
+        const transformedMessages = messagesData.map((msg, index) => ({
+          id: msg._id || index,
+          sender: msg.sender?.name || (msg.isOwn ? 'You' : partner.name),
+          avatar: msg.sender?.avatar?.url || (msg.isOwn ? user?.imageUrl : partner.avatar),
+          message: msg.content || msg.message || msg.text,
+          timestamp: new Date(msg.createdAt || msg.timestamp).toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }),
+          isOwn: msg.isOwn || msg.sender?._id === user?.id,
+        }));
+        
+        setMessages(transformedMessages);
+      }
+    } catch (error) {
+      console.error('Failed to fetch chat:', error);
+      // If API fails, we'll work with empty state
+      setMessages([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [matchId, user?.id, user?.imageUrl, partner]);
+
+  useEffect(() => {
+    fetchChat();
+  }, [fetchChat]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -20,20 +79,37 @@ const ExchangeChat = ({ matchId = '1' }) => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!newMessage.trim()) return;
 
-    const message = {
-      id: messages.length + 1,
+    const messageContent = newMessage.trim();
+    setNewMessage('');
+    setSending(true);
+
+    // Optimistic update
+    const tempMessage = {
+      id: `temp-${Date.now()}`,
       sender: 'You',
-      avatar: 'https://i.pravatar.cc/150?img=2',
-      message: newMessage,
+      avatar: user?.imageUrl || 'https://i.pravatar.cc/150?img=2',
+      message: messageContent,
       timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
       isOwn: true,
     };
+    setMessages(prev => [...prev, tempMessage]);
 
-    setMessages([...messages, message]);
-    setNewMessage('');
+    try {
+      if (conversationId) {
+        await sendMessage(conversationId, { content: messageContent });
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      toast.error('Failed to send message');
+      // Remove optimistic message on error
+      setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
+      setNewMessage(messageContent); // Restore the message
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleStartCall = () => {
@@ -51,13 +127,13 @@ const ExchangeChat = ({ matchId = '1' }) => {
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           <div className="flex items-center gap-3">
             <img
-              src="https://i.pravatar.cc/150?img=5"
-              alt="Sarah Lee"
+              src={partner.avatar}
+              alt={partner.name}
               className="w-10 h-10 rounded-full"
             />
             <div>
-              <h2 className="font-bold text-gray-900">Sarah Lee</h2>
-              <p className="text-sm text-gray-500">Learning Python • Teaching Web Design</p>
+              <h2 className="font-bold text-gray-900">{partner.name}</h2>
+              <p className="text-sm text-gray-500">{partner.skill}</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -84,7 +160,17 @@ const ExchangeChat = ({ matchId = '1' }) => {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 max-w-2xl mx-auto w-full">
-        {messages.map((msg) => (
+        {loading ? (
+          <div className="flex justify-center items-center h-full">
+            <FaSpinner className="animate-spin text-blue-600 text-3xl" />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <p>No messages yet.</p>
+            <p className="text-sm">Start the conversation!</p>
+          </div>
+        ) : (
+          messages.map((msg) => (
           <div key={msg.id} className={`flex gap-3 ${msg.isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
             <img
               src={msg.avatar}
@@ -103,6 +189,7 @@ const ExchangeChat = ({ matchId = '1' }) => {
                 {msg.message}
               </div>
             </div>
+          </div>
           </div>
         ))}
         <div ref={messagesEndRef} />

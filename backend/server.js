@@ -44,7 +44,13 @@ const server = http.createServer(app);
 // ============================================
 const io = socketIO(server, {
   cors: {
-    origin: config.frontend.url,
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:5175',
+      config.frontend.url,
+    ],
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -70,9 +76,26 @@ connectDB();
 app.use(helmet());
 
 // CORS Configuration
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  config.frontend.url,
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: config.frontend.url,
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     optionsSuccessStatus: 200,
   })

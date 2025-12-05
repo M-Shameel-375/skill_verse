@@ -1,39 +1,58 @@
-import React, { useState } from 'react';
-import { FaCheck, FaTimer, FaTimes, FaUser, FaStar } from 'react-icons/fa';
+import React, { useState, useEffect, useCallback } from 'react';
+import { FaCheck, FaTimer, FaTimes, FaUser, FaStar, FaSpinner } from 'react-icons/fa';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/Card';
 import { Button } from '../../../../components/ui/Button';
+import { getReceivedRequests, acceptExchangeRequest, rejectExchangeRequest } from '@/api/skillExchangeApi';
 import toast from 'react-hot-toast';
 
 const MatchList = ({ exchangeId }) => {
-  const [matches, setMatches] = useState([
-    {
-      _id: '1',
-      user: { name: 'Alice Chen', avatar: '', rating: 4.9 },
-      offering: 'Python',
-      seeking: 'React',
-      message: 'I have 3 years of Python experience and looking to learn React!',
-      status: 'pending',
-      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      _id: '2',
-      user: { name: 'Bob Smith', avatar: '', rating: 4.7 },
-      offering: 'Python',
-      seeking: 'React',
-      message: 'Great exchange opportunity! I teach Python basics and intermediates.',
-      status: 'accepted',
-      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ]);
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleAccept = (matchId) => {
-    setMatches(matches.map((m) => (m._id === matchId ? { ...m, status: 'accepted' } : m)));
-    toast.success('Match accepted!');
+  // Fetch matches from API
+  const fetchMatches = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await getReceivedRequests();
+      const data = response?.data?.requests || response?.data || [];
+      // Filter by exchangeId if provided
+      const filteredData = exchangeId 
+        ? data.filter(m => m.exchangeId === exchangeId)
+        : data;
+      setMatches(filteredData);
+    } catch (error) {
+      console.error('Failed to fetch matches:', error);
+      toast.error('Failed to load matches');
+      setMatches([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [exchangeId]);
+
+  useEffect(() => {
+    fetchMatches();
+  }, [fetchMatches]);
+
+  const handleAccept = async (matchId) => {
+    try {
+      await acceptExchangeRequest(matchId);
+      setMatches(matches.map((m) => (m._id === matchId ? { ...m, status: 'accepted' } : m)));
+      toast.success('Match accepted!');
+    } catch (error) {
+      console.error('Failed to accept match:', error);
+      toast.error('Failed to accept match');
+    }
   };
 
-  const handleReject = (matchId) => {
-    setMatches(matches.filter((m) => m._id !== matchId));
-    toast.success('Match rejected');
+  const handleReject = async (matchId) => {
+    try {
+      await rejectExchangeRequest(matchId);
+      setMatches(matches.filter((m) => m._id !== matchId));
+      toast.success('Match rejected');
+    } catch (error) {
+      console.error('Failed to reject match:', error);
+      toast.error('Failed to reject match');
+    }
   };
 
   const getStatusColor = (status) => {
@@ -58,7 +77,11 @@ const MatchList = ({ exchangeId }) => {
         <p className="text-gray-600">{matches.length} match(es) interested in this exchange</p>
       </div>
 
-      {matches.length === 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <FaSpinner className="animate-spin text-blue-600 text-3xl" />
+        </div>
+      ) : matches.length === 0 ? (
         <Card>
           <div className="p-8 text-center">
             <p className="text-gray-600">No matches yet. Check back soon!</p>

@@ -10,9 +10,9 @@ const BADGE_ENDPOINTS = {
   CREATE_BADGE: '/badges',
   UPDATE_BADGE: '/badges',
   DELETE_BADGE: '/badges',
-  AWARD_BADGE: '/badges/award',
+  AWARD_BADGE: '/badges',
   GET_USER_BADGES: '/badges/user',
-  GET_MY_BADGES: '/badges/my-badges',
+  GET_MY_BADGES: '/badges/my/badges',
   GET_AVAILABLE_BADGES: '/badges/available',
   GET_BADGE_PROGRESS: '/badges/progress',
   CLAIM_BADGE: '/badges/claim',
@@ -90,8 +90,8 @@ export const deleteBadge = (badgeId) => {
  * @param {Object} awardData - { userId, badgeId, reason }
  * @returns {Promise}
  */
-export const awardBadge = (awardData) => {
-  return axios.post(BADGE_ENDPOINTS.AWARD_BADGE, awardData);
+export const awardBadge = (badgeId, awardData) => {
+  return axios.post(`${BADGE_ENDPOINTS.AWARD_BADGE}/${badgeId}/award`, awardData);
 };
 
 // ============================================

@@ -2,7 +2,7 @@
 // DASHBOARD PAGE
 // ============================================
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
@@ -28,6 +28,9 @@ import {
   CardDescription,
 } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { getUserStatistics, getEnrolledCourses } from '@/api/userApi';
+import { getUpcomingSessions } from '@/api/liveSessionApi';
+import toast from 'react-hot-toast';
 
 // ============================================
 // CONTINUE LEARNING CARD
@@ -179,45 +182,58 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useUser();
   
-  // Mock data for now
-  const [enrolledCourses] = useState([
-    {
-      _id: '1',
-      title: 'Complete React Developer Course',
-      thumbnail: { url: 'https://via.placeholder.com/200x120' },
-      instructor: { name: 'John Doe' },
-      progress: 65,
-      completedLectures: 13,
-      totalLectures: 20,
-    },
-    {
-      _id: '2',
-      title: 'Node.js Masterclass',
-      thumbnail: { url: 'https://via.placeholder.com/200x120' },
-      instructor: { name: 'Jane Smith' },
-      progress: 30,
-      completedLectures: 6,
-      totalLectures: 20,
-    },
-  ]);
+  // Dynamic state - fetched from API
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [upcomingSessions, setUpcomingSessions] = useState([]);
+  const [statistics, setStatistics] = useState({
+    coursesCompleted: 0,
+    certificatesEarned: 0,
+    totalPoints: 0,
+    currentStreak: 0,
+    learningHours: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const [upcomingSessions] = useState([
-    {
-      _id: '1',
-      title: 'Live Q&A: React Best Practices',
-      instructor: { name: 'John Doe' },
-      scheduledAt: new Date(Date.now() + 86400000),
-      participants: Array(15),
-    },
-  ]);
+  // Fetch dashboard data
+  const fetchDashboardData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Fetch all data in parallel
+      const [coursesRes, sessionsRes, statsRes] = await Promise.allSettled([
+        getEnrolledCourses(),
+        getUpcomingSessions(),
+        getUserStatistics(),
+      ]);
 
-  const statistics = {
-    coursesCompleted: 5,
-    certificatesEarned: 3,
-    totalPoints: 2450,
-    currentStreak: 7,
-    learningHours: 45,
-  };
+      // Handle enrolled courses
+      if (coursesRes.status === 'fulfilled' && coursesRes.value?.data) {
+        setEnrolledCourses(coursesRes.value.data.slice(0, 5)); // Show top 5
+      }
+
+      // Handle upcoming sessions
+      if (sessionsRes.status === 'fulfilled' && sessionsRes.value?.data) {
+        setUpcomingSessions(sessionsRes.value.data.slice(0, 3)); // Show top 3
+      }
+
+      // Handle statistics
+      if (statsRes.status === 'fulfilled' && statsRes.value?.data) {
+        setStatistics(statsRes.value.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch dashboard data:', err);
+      setError('Failed to load dashboard data');
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   // ============================================
   // GREETING MESSAGE
@@ -230,6 +246,30 @@ const Dashboard = () => {
   };
 
   const userName = user?.firstName || 'Learner';
+
+  // Loading skeleton component
+  const LoadingSkeleton = () => (
+    <div className="animate-pulse space-y-8">
+      <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
+        ))}
+      </div>
+      <div className="h-64 bg-gray-200 rounded-lg"></div>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <>
+        <Helmet>
+          <title>Dashboard | SkillVerse</title>
+        </Helmet>
+        <LoadingSkeleton />
+      </>
+    );
+  }
 
   return (
     <>

@@ -19,6 +19,9 @@ const badgeRoutes = require('./badge.routes');
 const notificationRoutes = require('./notification.routes');
 const adminRoutes = require('./admin.routes');
 const analyticsRoutes = require('./analytics.routes');
+const chatRoutes = require('./chat.routes');
+const aiRoutes = require('./ai.routes');
+const disputeRoutes = require('./dispute.routes');
 
 // Mount routes
 router.use('/users', userRoutes);
@@ -33,5 +36,8 @@ router.use('/badges', badgeRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/admin', adminRoutes);
 router.use('/analytics', analyticsRoutes);
+router.use('/chats', chatRoutes);
+router.use('/ai', aiRoutes);
+router.use('/disputes', disputeRoutes);
 
 module.exports = router;

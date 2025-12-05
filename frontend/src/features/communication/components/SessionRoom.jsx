@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaMicrophone, FaMicrophoneSlash, FaVideo, FaVideoSlash, FaPhone, FaShareScreen, FaHand, FaEllipsisV, FaSpinner } from 'react-icons/fa';
-import Card from '../common/Card';
+import { FaMicrophone, FaMicrophoneSlash, FaVideo, FaVideoSlash, FaPhone, FaShareScreen, FaHand, FaEllipsisV, FaSpinner, FaExternalLinkAlt } from 'react-icons/fa';
 import toast from 'react-hot-toast';
-import { getSessionById, joinLiveSession, leaveLiveSession, getSessionParticipants } from '../../../api/liveSessionApi';
+import { getSessionById, joinLiveSession, leaveLiveSession, getSessionParticipants, getVideoConfig } from '../../../api/liveSessionApi';
+import VideoCall from './VideoCall';
 
 const SessionRoom = () => {
   const { sessionId } = useParams();
@@ -17,6 +17,8 @@ const SessionRoom = () => {
   const [handRaised, setHandRaised] = useState(false);
   const [participants, setParticipants] = useState([]);
   const [showParticipants, setShowParticipants] = useState(true);
+  const [videoConfig, setVideoConfig] = useState(null);
+  const [useAgoraVideo, setUseAgoraVideo] = useState(false);
 
   const videoRef = useRef(null);
 
@@ -29,6 +31,17 @@ const SessionRoom = () => {
       const sessionResponse = await getSessionById(sessionId);
       const sessionData = sessionResponse.data?.data || sessionResponse.data;
       setSession(sessionData);
+      
+      // Fetch video configuration to check if Agora is available
+      try {
+        const configResponse = await getVideoConfig(sessionId);
+        const configData = configResponse.data?.data || configResponse.data;
+        setVideoConfig(configData);
+        setUseAgoraVideo(configData.videoEnabled);
+      } catch (err) {
+        console.log('Video config not available:', err.message);
+        setUseAgoraVideo(false);
+      }
       
       // Fetch participants
       try {
@@ -122,8 +135,46 @@ const SessionRoom = () => {
   // Get instructor info from session or first participant with instructor role
   const instructor = session?.instructor || participants.find(p => p.role === 'Instructor' || p.isInstructor) || { name: 'Instructor' };
 
+  // Handle Agora Video Call leave
+  const handleVideoCallLeave = () => {
+    navigate('/live-sessions');
+  };
+
+  // If Agora video is enabled and configured, use the VideoCall component
+  if (useAgoraVideo && videoConfig?.videoEnabled) {
+    return (
+      <VideoCall
+        sessionId={sessionId}
+        sessionTitle={session?.title}
+        onLeave={handleVideoCallLeave}
+      />
+    );
+  }
+
+  // Check if session has an external meeting link
+  const externalMeetingLink = session?.meetingLink || session?.externalLink;
+
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
+      {/* External meeting link banner */}
+      {externalMeetingLink && (
+        <div className="bg-blue-600 text-white px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FaExternalLinkAlt />
+            <span>This session uses an external meeting platform.</span>
+          </div>
+          <a
+            href={externalMeetingLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-white text-blue-600 px-4 py-2 rounded-lg font-medium hover:bg-blue-50 transition flex items-center gap-2"
+          >
+            <span>Join External Meeting</span>
+            <FaExternalLinkAlt className="text-sm" />
+          </a>
+        </div>
+      )}
+
       {/* Main video area */}
       <div className="flex-1 flex gap-2 p-4 bg-gray-900">
         {/* Instructor video */}

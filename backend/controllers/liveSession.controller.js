@@ -10,6 +10,7 @@ const LiveSession = require('../models/LiveSession.model');
 const User = require('../models/User.model');
 const { getPagination } = require('../utils/helpers');
 const { sendEmail } = require('../services/email.service');
+const { generateAgoraToken, generateChannelName, getVideoServiceStatus, createMeetingRoom } = require('../services/video.service');
 
 // ============================================
 // @desc    Create new live session
@@ -624,4 +625,142 @@ exports.getPopularSessions = asyncHandler(async (req, res) => {
   const sessions = await LiveSession.getPopularSessions(parseInt(limit));
 
   ApiResponse.success(res, sessions, 'Popular sessions retrieved successfully');
+});
+
+// ============================================
+// @desc    Get video token for live session
+// @route   GET /api/v1/live-sessions/:id/video-token
+// @access  Private (Registered participants or host)
+// ============================================
+exports.getVideoToken = asyncHandler(async (req, res) => {
+  const session = await LiveSession.findById(req.params.id);
+
+  if (!session) {
+    throw ApiError.notFound('Live session not found');
+  }
+
+  // Check if session is active or about to start (within 15 minutes)
+  const now = new Date();
+  const sessionStart = new Date(session.scheduledAt);
+  const fifteenMinutesBefore = new Date(sessionStart.getTime() - 15 * 60 * 1000);
+  
+  if (session.status !== 'live' && now < fifteenMinutesBefore) {
+    throw ApiError.badRequest('Session has not started yet. Join 15 minutes before scheduled time.');
+  }
+
+  // Determine user role
+  const isHost = session.host.toString() === req.user._id.toString();
+  const isCoHost = session.coHosts?.some(
+    (coHost) => coHost.toString() === req.user._id.toString()
+  );
+  const isRegistered = session.isUserRegistered?.(req.user._id) || 
+    session.participants?.some(p => p.user?.toString() === req.user._id.toString());
+
+  if (!isHost && !isCoHost && !isRegistered) {
+    throw ApiError.forbidden('You must register for this session to join');
+  }
+
+  // Determine role for token
+  const role = isHost || isCoHost ? 'host' : 'audience';
+  
+  // Generate channel name and token
+  const channelName = generateChannelName(session._id.toString());
+  const tokenInfo = generateAgoraToken(channelName, 0, role);
+
+  // Return token info along with session details
+  ApiResponse.success(res, {
+    ...tokenInfo,
+    sessionId: session._id,
+    sessionTitle: session.title,
+    isHost,
+    isCoHost,
+    meetingLink: session.meetingLink, // Fallback external link
+    streamingConfig: session.streamingConfig,
+  }, 'Video token generated successfully');
+});
+
+// ============================================
+// @desc    Get video service status
+// @route   GET /api/v1/live-sessions/video-status
+// @access  Private (Educator/Admin)
+// ============================================
+exports.getVideoStatus = asyncHandler(async (req, res) => {
+  const status = getVideoServiceStatus();
+
+  ApiResponse.success(res, status, 'Video service status retrieved');
+});
+
+// ============================================
+// @desc    Create/update meeting room for session
+// @route   POST /api/v1/live-sessions/:id/meeting-room
+// @access  Private (Host only)
+// ============================================
+exports.createMeetingRoomForSession = asyncHandler(async (req, res) => {
+  const session = await LiveSession.findById(req.params.id);
+
+  if (!session) {
+    throw ApiError.notFound('Live session not found');
+  }
+
+  // Only host can create meeting room
+  if (session.host.toString() !== req.user._id.toString()) {
+    throw ApiError.forbidden('Only the host can create a meeting room');
+  }
+
+  // Generate meeting room
+  const roomInfo = createMeetingRoom(session._id.toString(), req.user._id.toString());
+
+  // Update session with streaming config
+  session.streamingConfig = {
+    ...session.streamingConfig,
+    provider: 'agora',
+    channelName: roomInfo.channelName,
+    isConfigured: !roomInfo.useFallback,
+  };
+
+  await session.save();
+
+  ApiResponse.success(res, {
+    ...roomInfo,
+    sessionId: session._id,
+  }, 'Meeting room created successfully');
+});
+
+// ============================================
+// @desc    Set external meeting link (fallback)
+// @route   PUT /api/v1/live-sessions/:id/meeting-link
+// @access  Private (Host only)
+// ============================================
+exports.setMeetingLink = asyncHandler(async (req, res) => {
+  const { meetingLink, platform } = req.body;
+
+  if (!meetingLink) {
+    throw ApiError.badRequest('Meeting link is required');
+  }
+
+  const session = await LiveSession.findById(req.params.id);
+
+  if (!session) {
+    throw ApiError.notFound('Live session not found');
+  }
+
+  // Only host can set meeting link
+  if (session.host.toString() !== req.user._id.toString()) {
+    throw ApiError.forbidden('Only the host can set meeting link');
+  }
+
+  session.meetingLink = meetingLink;
+  session.streamingConfig = {
+    ...session.streamingConfig,
+    provider: platform || 'custom',
+    externalLink: meetingLink,
+    isConfigured: true,
+  };
+
+  await session.save();
+
+  ApiResponse.success(res, {
+    meetingLink: session.meetingLink,
+    streamingConfig: session.streamingConfig,
+  }, 'Meeting link updated successfully');
 });

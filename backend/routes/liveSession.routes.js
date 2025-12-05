@@ -27,6 +27,10 @@ const {
   createPoll,
   voteOnPoll,
   getPopularSessions,
+  getVideoToken,
+  getVideoStatus,
+  createMeetingRoomForSession,
+  setMeetingLink,
 } = require('../controllers/liveSession.controller');
 const { protect } = require('../middlewares/auth.middleware');
 const { authorize } = require('../middlewares/roleCheck.middleware');
@@ -67,5 +71,11 @@ router.post('/:id/questions', protect, addQuestion);
 router.put('/:id/questions/:questionId/answer', protect, answerQuestion);
 router.post('/:id/polls', protect, createPoll);
 router.post('/:id/polls/:pollId/vote', protect, voteOnPoll);
+
+// Protected routes - Video/Meeting
+router.get('/video-status', protect, authorize('educator', 'admin'), getVideoStatus);
+router.get('/:id/video-token', protect, getVideoToken);
+router.post('/:id/meeting-room', protect, createMeetingRoomForSession);
+router.put('/:id/meeting-link', protect, setMeetingLink);
 
 module.exports = router;

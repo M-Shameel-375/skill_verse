@@ -184,11 +184,11 @@ export const getSentRequests = () => {
 // ============================================
 /**
  * Find matching users for skill exchange
- * @param {Object} matchData - { offeredSkill, desiredSkill }
+ * @param {Object} params - { offeredSkill, desiredSkill } as query params
  * @returns {Promise}
  */
-export const findMatches = (matchData) => {
-  return axios.post(EXCHANGE_ENDPOINTS.FIND_MATCHES, matchData);
+export const findMatches = (params = {}) => {
+  return axios.get('/skill-exchanges/matches', { params });
 };
 
 // ============================================

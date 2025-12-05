@@ -20,6 +20,9 @@ const {
   getRareBadges,
   checkBadgeEligibility,
   getBadgeStatistics,
+  getAvailableBadges,
+  getBadgeProgress,
+  claimBadge,
 } = require('../controllers/badge.controller');
 const { protect, optionalAuth } = require('../middlewares/auth.middleware');
 const { authorize } = require('../middlewares/roleCheck.middleware');
@@ -38,6 +41,9 @@ router.get('/:id', validateMongoId('id'), validate, getBadgeById);
 router.use(protect);
 
 router.get('/my/badges', getMyBadges);
+router.get('/available', getAvailableBadges);
+router.get('/progress', getBadgeProgress);
+router.post('/claim/:badgeId', validateMongoId('badgeId'), validate, claimBadge);
 router.post('/check-eligibility', checkBadgeEligibility);
 
 // Protected routes - Admin

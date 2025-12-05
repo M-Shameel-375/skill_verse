@@ -9,6 +9,8 @@ const {
   getCourseAnalytics,
   getInstructorAnalytics,
   getLearnerAnalytics,
+  exportProgressReport,
+  exportProgressJSON,
 } = require('../controllers/analytics.controller');
 const { protect } = require('../middlewares/auth.middleware');
 const { authorize } = require('../middlewares/roleCheck.middleware');
@@ -25,5 +27,9 @@ router.get('/courses/:id', validateMongoId('id'), validate, getCourseAnalytics);
 
 // Learner analytics
 router.get('/learner', getLearnerAnalytics);
+
+// Export progress reports
+router.get('/export/progress', exportProgressReport);  // PDF download
+router.get('/export/json', exportProgressJSON);        // JSON download
 
 module.exports = router;
