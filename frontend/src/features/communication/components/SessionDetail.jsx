@@ -1,46 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaArrowLeft, FaUser, FaClock, FaMapPin, FaUsers, FaPlayCircle, FaShare, FaBell } from 'react-icons/fa';
+import { FaArrowLeft, FaUser, FaClock, FaMapPin, FaUsers, FaPlayCircle, FaShare, FaBell, FaSpinner } from 'react-icons/fa';
 import Button from '../common/Button';
 import Card from '../common/Card';
 import toast from 'react-hot-toast';
+import { getSessionById, joinLiveSession, leaveLiveSession } from '../../../api/liveSessionApi';
 
 const SessionDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isRegistered, setIsRegistered] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  // Mock data
-  const session = {
-    _id: id,
-    title: 'React Hooks Deep Dive',
-    description: 'Learn advanced React Hooks patterns, custom hooks, hooks best practices, and optimization techniques. We will build real-world projects using React Hooks.',
-    category: 'React',
-    difficulty: 'Advanced',
-    startTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-    duration: 120,
-    instructor: {
-      _id: '1',
-      name: 'Sarah Chen',
-      avatar: '',
-      bio: 'React expert with 8+ years of experience',
-      rating: 4.9,
-      reviews: 156,
-    },
-    location: 'Online (Zoom)',
-    maxParticipants: 50,
-    registeredCount: 34,
-    prerequisites: ['JavaScript Fundamentals', 'Basic React Knowledge'],
-    topics: ['useState Hook', 'useEffect Hook', 'Custom Hooks', 'useReducer', 'useContext', 'Performance Optimization'],
-    resources: [
-      { name: 'React Hooks Documentation', url: '#' },
-      { name: 'Source Code Repository', url: '#' },
-    ],
-  };
+  const fetchSession = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getSessionById(id);
+      const data = response.data?.data || response.data;
+      setSession(data);
+      setIsRegistered(data.isRegistered || false);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch session details');
+      console.error('Error fetching session:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
-  const handleRegister = () => {
-    setIsRegistered(!isRegistered);
-    toast.success(isRegistered ? 'Unregistered from session' : 'Registered for session!');
+  useEffect(() => {
+    fetchSession();
+  }, [fetchSession]);
+
+  const handleRegister = async () => {
+    try {
+      setActionLoading(true);
+      if (isRegistered) {
+        await leaveLiveSession(id);
+        toast.success('Unregistered from session');
+      } else {
+        await joinLiveSession(id);
+        toast.success('Registered for session!');
+      }
+      setIsRegistered(!isRegistered);
+      fetchSession(); // Refresh session data
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update registration');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleReminder = () => {
@@ -51,6 +62,27 @@ const SessionDetail = () => {
     navigator.clipboard.writeText(window.location.href);
     toast.success('Session link copied to clipboard!');
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <FaSpinner className="animate-spin text-4xl text-blue-600" />
+      </div>
+    );
+  }
+
+  if (error || !session) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="p-8 text-center">
+          <p className="text-red-600 mb-4">{error || 'Session not found'}</p>
+          <Button variant="primary" onClick={() => navigate('/live-sessions')}>
+            Back to Sessions
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -85,8 +117,9 @@ const SessionDetail = () => {
                 <Button
                   variant={isRegistered ? 'outline' : 'primary'}
                   fullWidth
-                  icon={<FaPlayCircle />}
+                  icon={actionLoading ? <FaSpinner className="animate-spin" /> : <FaPlayCircle />}
                   onClick={handleRegister}
+                  disabled={actionLoading}
                 >
                   {isRegistered ? 'Registered' : 'Register Now'}
                 </Button>
@@ -100,21 +133,25 @@ const SessionDetail = () => {
             </div>
 
             {/* Instructor */}
+            {session.instructor && (
             <div className="border-t pt-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Instructor</h3>
               <div className="flex items-center gap-4">
                 <img
-                  src={session.instructor.avatar || `https://i.pravatar.cc/64?img=${session.instructor._id}`}
-                  alt={session.instructor.name}
+                  src={session.instructor.avatar || session.instructor.profileImage || `https://i.pravatar.cc/64?img=${session.instructor._id || 1}`}
+                  alt={session.instructor.name || 'Instructor'}
                   className="w-16 h-16 rounded-full"
                 />
                 <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900">{session.instructor.name}</h4>
-                  <p className="text-sm text-gray-600">{session.instructor.bio}</p>
-                  <p className="text-sm mt-1">⭐ {session.instructor.rating} ({session.instructor.reviews} reviews)</p>
+                  <h4 className="font-semibold text-gray-900">{session.instructor.name || 'Instructor'}</h4>
+                  <p className="text-sm text-gray-600">{session.instructor.bio || session.instructor.expertise || ''}</p>
+                  {session.instructor.rating && (
+                    <p className="text-sm mt-1">⭐ {session.instructor.rating} ({session.instructor.reviews || 0} reviews)</p>
+                  )}
                 </div>
               </div>
             </div>
+            )}
           </div>
         </Card>
 

@@ -1,19 +1,54 @@
-import React, { useState } from 'react';
-import { FaPlus, FaClock, FaCheckCircle, FaTimesCircle, FaStar, FaUsers } from 'react-icons/fa';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FaPlus, FaClock, FaCheckCircle, FaTimesCircle, FaStar, FaUsers, FaSpinner } from 'react-icons/fa';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
+import { getMyExchanges, completeExchange, acceptExchangeRequest } from '@/api/skillExchangeApi';
 
 const SkillExchangeDashboard = () => {
-  const [exchanges, setExchanges] = useState([
-    { id: 1, skill: 'Web Design', offering: 'Python', status: 'active', partner: 'Alice Johnson', hoursCompleted: 8, hoursTotal: 20, rating: 4.8 },
-    { id: 2, skill: 'JavaScript', offering: 'UI Design', status: 'active', partner: 'Bob Smith', hoursCompleted: 12, hoursTotal: 20, rating: 4.9 },
-    { id: 3, skill: 'React', offering: 'Mobile Dev', status: 'completed', partner: 'Carol White', hoursCompleted: 20, hoursTotal: 20, rating: 5.0 },
-    { id: 4, skill: 'TypeScript', offering: 'Cloud AWS', status: 'pending', partner: 'David Lee', hoursCompleted: 0, hoursTotal: 15, rating: null },
-  ]);
+  const navigate = useNavigate();
+  const [exchanges, setExchanges] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(null);
+
+  // Fetch user's exchanges from API
+  const fetchExchanges = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await getMyExchanges();
+      
+      if (response.data?.data) {
+        const data = response.data.data;
+        // Map API response to dashboard format
+        const mappedExchanges = (Array.isArray(data) ? data : data.exchanges || []).map(ex => ({
+          id: ex._id,
+          skill: ex.requestedSkill?.name || 'Unknown Skill',
+          offering: ex.offeredSkill?.name || 'Unknown Skill',
+          status: ex.status === 'in-progress' ? 'active' : ex.status,
+          partner: ex.requester?.name || ex.provider?.name || 'Unknown Partner',
+          partnerId: ex.requester?._id || ex.provider?._id,
+          hoursCompleted: ex.actualDuration || 0,
+          hoursTotal: ex.estimatedDuration || 20,
+          rating: ex.feedback?.requesterFeedback?.rating || ex.feedback?.providerFeedback?.rating || null,
+        }));
+        setExchanges(mappedExchanges);
+      }
+    } catch (error) {
+      console.error('Error fetching exchanges:', error);
+      toast.error('Failed to load your exchanges');
+      setExchanges([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchExchanges();
+  }, [fetchExchanges]);
 
   const stats = {
-    activeExchanges: exchanges.filter((e) => e.status === 'active').length,
+    activeExchanges: exchanges.filter((e) => e.status === 'active' || e.status === 'in-progress').length,
     completedExchanges: exchanges.filter((e) => e.status === 'completed').length,
     hoursLearned: exchanges.reduce((acc, e) => acc + e.hoursCompleted, 0),
     totalRating: exchanges.filter((e) => e.rating).length > 0
@@ -21,21 +56,62 @@ const SkillExchangeDashboard = () => {
       : 0,
   };
 
-  const handleStartExchange = () => {
-    toast.success('Exchange started! Start messaging with your partner.');
+  const handleStartExchange = async (exchangeId) => {
+    try {
+      setActionLoading(exchangeId);
+      await acceptExchangeRequest(exchangeId);
+      toast.success('Exchange started! Start messaging with your partner.');
+      fetchExchanges(); // Refresh list
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to start exchange');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleCompleteExchange = (id) => {
-    setExchanges(exchanges.map((e) => (e.id === id ? { ...e, status: 'completed' } : e)));
-    toast.success('Exchange marked as completed');
+  const handleCompleteExchange = async (exchangeId) => {
+    try {
+      setActionLoading(exchangeId);
+      await completeExchange(exchangeId);
+      toast.success('Exchange marked as completed!');
+      fetchExchanges(); // Refresh list
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to complete exchange');
+    } finally {
+      setActionLoading(null);
+    }
   };
+
+  const handleChat = (partnerId) => {
+    if (partnerId) {
+      navigate(`/messages/${partnerId}`);
+    } else {
+      toast.error('Partner not found');
+    }
+  };
+
+  const handleNewExchange = () => {
+    navigate('/skill-exchange/create');
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <FaSpinner className="animate-spin text-4xl text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading your exchanges...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Skill Exchange Dashboard</h1>
-          <Button variant="primary" icon={<FaPlus />} onClick={() => toast.success('New exchange created!')}>
+          <Button variant="primary" icon={<FaPlus />} onClick={handleNewExchange}>
             New Exchange
           </Button>
         </div>
@@ -125,18 +201,19 @@ const SkillExchangeDashboard = () => {
                   <div className="flex gap-2 md:flex-col w-full md:w-auto">
                     {exchange.status === 'pending' && (
                       <Button
-                        onClick={handleStartExchange}
+                        onClick={() => handleStartExchange(exchange.id)}
                         variant="primary"
                         size="sm"
                         className="flex-1"
+                        disabled={actionLoading === exchange.id}
                       >
-                        Start
+                        {actionLoading === exchange.id ? <FaSpinner className="animate-spin" /> : 'Start'}
                       </Button>
                     )}
-                    {exchange.status === 'active' && (
+                    {(exchange.status === 'active' || exchange.status === 'in-progress') && (
                       <>
                         <Button
-                          onClick={() => toast.success('Opening chat...')}
+                          onClick={() => handleChat(exchange.partnerId)}
                           variant="outline"
                           size="sm"
                           className="flex-1"
@@ -148,14 +225,15 @@ const SkillExchangeDashboard = () => {
                           variant="primary"
                           size="sm"
                           className="flex-1"
+                          disabled={actionLoading === exchange.id}
                         >
-                          Complete
+                          {actionLoading === exchange.id ? <FaSpinner className="animate-spin" /> : 'Complete'}
                         </Button>
                       </>
                     )}
                     {exchange.status === 'completed' && (
                       <Button
-                        onClick={() => toast.success('Opening review...')}
+                        onClick={() => navigate(`/skill-exchange/${exchange.id}/review`)}
                         variant="outline"
                         size="sm"
                         className="flex-1"

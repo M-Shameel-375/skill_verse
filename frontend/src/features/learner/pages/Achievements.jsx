@@ -3,7 +3,7 @@
 // ============================================
 // Display user achievements, badges, and gamification progress
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -24,201 +24,183 @@ import {
   Gift,
   Lock,
   CheckCircle,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { getMyBadges, getAvailableBadges, getBadgeProgress, claimBadge } from '@/api/badgeApi';
 
 const Achievements = () => {
   const { user } = useSelector((state) => state.auth || {});
   const [activeTab, setActiveTab] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [claimingBadge, setClaimingBadge] = useState(null);
 
-  // Mock achievements data
-  const achievements = [
-    {
-      id: 1,
-      title: 'First Steps',
-      description: 'Complete your first course',
-      icon: <BookOpen className="w-6 h-6" />,
-      category: 'learning',
-      points: 50,
-      earned: true,
-      earnedAt: '2024-11-15',
-      rarity: 'common',
-    },
-    {
-      id: 2,
-      title: 'Quick Learner',
-      description: 'Complete 5 courses',
-      icon: <Zap className="w-6 h-6" />,
-      category: 'learning',
-      points: 100,
-      earned: true,
-      earnedAt: '2024-11-20',
-      rarity: 'uncommon',
-    },
-    {
-      id: 3,
-      title: 'Knowledge Seeker',
-      description: 'Complete 10 courses',
-      icon: <Target className="w-6 h-6" />,
-      category: 'learning',
-      points: 200,
-      earned: false,
-      progress: 7,
-      total: 10,
-      rarity: 'rare',
-    },
-    {
-      id: 4,
-      title: 'Social Butterfly',
-      description: 'Connect with 10 learners',
-      icon: <Users className="w-6 h-6" />,
-      category: 'social',
-      points: 75,
-      earned: true,
-      earnedAt: '2024-11-18',
-      rarity: 'common',
-    },
-    {
-      id: 5,
-      title: 'Helpful Hand',
-      description: 'Answer 20 questions in discussions',
-      icon: <MessageCircle className="w-6 h-6" />,
-      category: 'social',
-      points: 150,
-      earned: false,
-      progress: 12,
-      total: 20,
-      rarity: 'uncommon',
-    },
-    {
-      id: 6,
-      title: 'Skill Exchanger',
-      description: 'Complete your first skill exchange',
-      icon: <Award className="w-6 h-6" />,
-      category: 'exchange',
-      points: 100,
-      earned: true,
-      earnedAt: '2024-11-25',
-      rarity: 'uncommon',
-    },
-    {
-      id: 7,
-      title: 'Master Trader',
-      description: 'Complete 10 skill exchanges',
-      icon: <Crown className="w-6 h-6" />,
-      category: 'exchange',
-      points: 300,
-      earned: false,
-      progress: 3,
-      total: 10,
-      rarity: 'epic',
-    },
-    {
-      id: 8,
-      title: 'On Fire',
-      description: 'Maintain a 7-day learning streak',
-      icon: <Flame className="w-6 h-6" />,
-      category: 'streak',
-      points: 100,
-      earned: true,
-      earnedAt: '2024-11-22',
-      rarity: 'uncommon',
-    },
-    {
-      id: 9,
-      title: 'Unstoppable',
-      description: 'Maintain a 30-day learning streak',
-      icon: <Trophy className="w-6 h-6" />,
-      category: 'streak',
-      points: 500,
-      earned: false,
-      progress: 14,
-      total: 30,
-      rarity: 'legendary',
-    },
-    {
-      id: 10,
-      title: 'Early Bird',
-      description: 'Complete a lesson before 7 AM',
-      icon: <Clock className="w-6 h-6" />,
-      category: 'special',
-      points: 50,
-      earned: false,
-      rarity: 'rare',
-    },
-    {
-      id: 11,
-      title: 'Night Owl',
-      description: 'Complete a lesson after midnight',
-      icon: <Star className="w-6 h-6" />,
-      category: 'special',
-      points: 50,
-      earned: true,
-      earnedAt: '2024-11-28',
-      rarity: 'rare',
-    },
-    {
-      id: 12,
-      title: 'Perfectionist',
-      description: 'Score 100% on 5 quizzes',
-      icon: <Medal className="w-6 h-6" />,
-      category: 'learning',
-      points: 250,
-      earned: false,
-      progress: 2,
-      total: 5,
-      rarity: 'epic',
-    },
-  ];
+  // State for API data
+  const [achievements, setAchievements] = useState([]);
+  const [badges, setBadges] = useState([]);
+  const [stats, setStats] = useState({
+    totalPoints: 0,
+    level: 1,
+    nextLevelPoints: 1000,
+    achievementsEarned: 0,
+    totalAchievements: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+  });
 
-  const badges = [
-    {
-      id: 1,
-      name: 'Bronze Learner',
-      icon: '🥉',
-      requirement: 'Earn 500 points',
-      earned: true,
-    },
-    {
-      id: 2,
-      name: 'Silver Scholar',
-      icon: '🥈',
-      requirement: 'Earn 2,000 points',
-      earned: true,
-    },
-    {
-      id: 3,
-      name: 'Gold Expert',
-      icon: '🥇',
-      requirement: 'Earn 5,000 points',
-      earned: false,
-    },
-    {
-      id: 4,
-      name: 'Platinum Master',
-      icon: '💎',
-      requirement: 'Earn 10,000 points',
-      earned: false,
-    },
-    {
-      id: 5,
-      name: 'Diamond Legend',
-      icon: '👑',
-      requirement: 'Earn 25,000 points',
-      earned: false,
-    },
-  ];
-
-  const stats = {
-    totalPoints: 2450,
-    level: 12,
-    nextLevelPoints: 3000,
-    achievementsEarned: achievements.filter((a) => a.earned).length,
-    totalAchievements: achievements.length,
-    currentStreak: 14,
-    longestStreak: 21,
+  // Icon mapping for badge categories
+  const getIconByCategory = (category) => {
+    const iconMap = {
+      learning: <BookOpen className="w-6 h-6" />,
+      social: <Users className="w-6 h-6" />,
+      exchange: <Award className="w-6 h-6" />,
+      streak: <Flame className="w-6 h-6" />,
+      special: <Star className="w-6 h-6" />,
+      quiz: <Target className="w-6 h-6" />,
+      course: <BookOpen className="w-6 h-6" />,
+      achievement: <Trophy className="w-6 h-6" />,
+    };
+    return iconMap[category] || <Trophy className="w-6 h-6" />;
   };
+
+  // Fetch achievements data
+  const fetchAchievements = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [myBadgesRes, availableBadgesRes, progressRes] = await Promise.allSettled([
+        getMyBadges(),
+        getAvailableBadges(),
+        getBadgeProgress(),
+      ]);
+
+      // Process earned badges
+      const earnedBadges = myBadgesRes.status === 'fulfilled' && myBadgesRes.value?.data?.data
+        ? myBadgesRes.value.data.data
+        : [];
+
+      // Process available badges
+      const availableBadgesList = availableBadgesRes.status === 'fulfilled' && availableBadgesRes.value?.data?.data
+        ? availableBadgesRes.value.data.data
+        : [];
+
+      // Process badge progress
+      const badgeProgress = progressRes.status === 'fulfilled' && progressRes.value?.data?.data
+        ? progressRes.value.data.data
+        : [];
+
+      // Map earned badge IDs for quick lookup
+      const earnedBadgeIds = new Set(earnedBadges.map(b => b.badge?._id || b._id));
+
+      // Combine into achievements format
+      const allAchievements = availableBadgesList.map(badge => {
+        const isEarned = earnedBadgeIds.has(badge._id);
+        const progress = badgeProgress.find(p => p.badgeId === badge._id);
+        
+        return {
+          id: badge._id,
+          title: badge.name,
+          description: badge.description,
+          icon: getIconByCategory(badge.category),
+          category: badge.category || 'achievement',
+          points: badge.points || 50,
+          earned: isEarned,
+          earnedAt: isEarned ? earnedBadges.find(b => (b.badge?._id || b._id) === badge._id)?.earnedAt : null,
+          rarity: badge.rarity || 'common',
+          progress: progress?.current || 0,
+          total: progress?.required || badge.requirement?.count || 1,
+          imageUrl: badge.icon?.url,
+        };
+      });
+
+      // If no available badges from API, add earned badges to display
+      if (allAchievements.length === 0 && earnedBadges.length > 0) {
+        earnedBadges.forEach(eb => {
+          const badge = eb.badge || eb;
+          allAchievements.push({
+            id: badge._id,
+            title: badge.name,
+            description: badge.description,
+            icon: getIconByCategory(badge.category),
+            category: badge.category || 'achievement',
+            points: badge.points || 50,
+            earned: true,
+            earnedAt: eb.earnedAt,
+            rarity: badge.rarity || 'common',
+          });
+        });
+      }
+
+      setAchievements(allAchievements);
+
+      // Build badges list (tier badges like Bronze, Silver, Gold)
+      const tierBadges = earnedBadges
+        .filter(b => (b.badge?.type || b.type) === 'tier')
+        .map(eb => ({
+          id: eb.badge?._id || eb._id,
+          name: eb.badge?.name || eb.name,
+          icon: eb.badge?.icon?.url ? '🏆' : getBadgeEmoji(eb.badge?.tier || eb.tier),
+          requirement: eb.badge?.description || eb.description,
+          earned: true,
+        }));
+
+      setBadges(tierBadges);
+
+      // Calculate stats from user data
+      const userPoints = user?.gamification?.points || 0;
+      const userLevel = user?.gamification?.level || 1;
+      const userStreak = user?.gamification?.streak || 0;
+      
+      setStats({
+        totalPoints: userPoints,
+        level: userLevel,
+        nextLevelPoints: userLevel * 1000,
+        achievementsEarned: allAchievements.filter(a => a.earned).length,
+        totalAchievements: allAchievements.length,
+        currentStreak: userStreak,
+        longestStreak: user?.gamification?.longestStreak || userStreak,
+      });
+
+    } catch (err) {
+      console.error('Error fetching achievements:', err);
+      setError('Failed to load achievements');
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.gamification]);
+
+  // Handle claiming a badge
+  const handleClaimBadge = async (badgeId) => {
+    try {
+      setClaimingBadge(badgeId);
+      await claimBadge(badgeId);
+      // Refresh achievements after claiming
+      await fetchAchievements();
+    } catch (err) {
+      console.error('Error claiming badge:', err);
+    } finally {
+      setClaimingBadge(null);
+    }
+  };
+
+  // Helper to get emoji for tier badges
+  const getBadgeEmoji = (tier) => {
+    const emojis = {
+      bronze: '🥉',
+      silver: '🥈',
+      gold: '🥇',
+      platinum: '💎',
+      diamond: '👑',
+    };
+    return emojis[tier?.toLowerCase()] || '🏆';
+  };
+
+  useEffect(() => {
+    fetchAchievements();
+  }, [fetchAchievements]);
 
   const categories = [
     { id: 'all', label: 'All', icon: <Trophy className="w-4 h-4" /> },
@@ -255,6 +237,41 @@ const Achievements = () => {
     activeTab === 'all'
       ? achievements
       : achievements.filter((a) => a.category === activeTab);
+
+  // Loading state
+  if (loading) {
+    return (
+      <>
+        <Helmet>
+          <title>Achievements - SkillVerse</title>
+        </Helmet>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+            <p className="text-gray-600">Loading achievements...</p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <>
+        <Helmet>
+          <title>Achievements - SkillVerse</title>
+        </Helmet>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <Trophy className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={fetchAchievements}>Try Again</Button>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

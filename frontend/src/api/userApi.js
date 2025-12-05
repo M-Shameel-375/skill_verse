@@ -297,10 +297,50 @@ export const getFollowing = (userId) => {
 };
 
 // ============================================
+// GET USER PROFILE (current user)
+// ============================================
+/**
+ * Get current user's profile
+ * @returns {Promise}
+ */
+export const getUserProfile = () => {
+  return axios.get('/users/me');
+};
+
+// ============================================
+// UPDATE PROFILE (current user)
+// ============================================
+/**
+ * Update current user's profile
+ * @param {Object|FormData} updates - Profile updates
+ * @returns {Promise}
+ */
+export const updateProfile = (updates) => {
+  const isFormData = updates instanceof FormData;
+  return axios.put('/users/me', updates, {
+    headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {},
+  });
+};
+
+// ============================================
+// APPLY AS EDUCATOR
+// ============================================
+/**
+ * Submit application to become an educator
+ * @param {Object} applicationData - Educator application data
+ * @returns {Promise}
+ */
+export const applyAsEducator = (applicationData) => {
+  return axios.post('/users/apply-educator', applicationData);
+};
+
+// ============================================
 // EXPORT ALL USER API METHODS
 // ============================================
 const userApi = {
   getUserById,
+  getUserProfile,
+  updateProfile,
   updateUserProfile,
   deleteUser,
   uploadProfileImage,
@@ -321,6 +361,7 @@ const userApi = {
   unfollowUser,
   getFollowers,
   getFollowing,
+  applyAsEducator,
 };
 
 export default userApi;

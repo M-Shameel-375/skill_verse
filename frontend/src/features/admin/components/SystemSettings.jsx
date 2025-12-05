@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
-import { FaSave, FaCog, FaShieldAlt, FaBell, FaDatabase, FaCreditCard } from 'react-icons/fa';
+import React, { useState, useEffect, useCallback } from 'react';
+import { FaSave, FaCog, FaShieldAlt, FaBell, FaDatabase, FaCreditCard, FaSpinner } from 'react-icons/fa';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import toast from 'react-hot-toast';
+import { getSystemSettings, updateSystemSettings } from '@/api/adminApi';
 
 const SystemSettings = () => {
   const [activeTab, setActiveTab] = useState('general');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({
     siteName: 'SkillVerse',
     siteEmail: 'support@skillverse.com',
@@ -21,12 +24,43 @@ const SystemSettings = () => {
     pushNotifications: true,
   });
 
+  // Fetch settings from API
+  const fetchSettings = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await getSystemSettings();
+      const data = response.data || {};
+      
+      if (Object.keys(data).length > 0) {
+        setSettings(prev => ({ ...prev, ...data }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch settings:', error);
+      // Keep default settings if API fails
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
   const handleChange = (key, value) => {
     setSettings({ ...settings, [key]: value });
   };
 
-  const handleSave = () => {
-    toast.success('Settings saved successfully!');
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      await updateSystemSettings(settings);
+      toast.success('Settings saved successfully!');
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      toast.error('Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const tabs = [
@@ -36,6 +70,14 @@ const SystemSettings = () => {
     { id: 'database', label: 'Database', icon: <FaDatabase /> },
     { id: 'payments', label: 'Payments', icon: <FaCreditCard /> },
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8 flex items-center justify-center">
+        <FaSpinner className="animate-spin text-4xl text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -126,8 +168,8 @@ const SystemSettings = () => {
                 </label>
               </div>
 
-              <Button onClick={handleSave} variant="primary" icon={<FaSave />}>
-                Save Changes
+              <Button onClick={handleSave} variant="primary" icon={saving ? <FaSpinner className="animate-spin" /> : <FaSave />} disabled={saving}>
+                {saving ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
           </Card>
@@ -161,8 +203,8 @@ const SystemSettings = () => {
                 </div>
               </div>
 
-              <Button onClick={handleSave} variant="primary" icon={<FaSave />}>
-                Save Changes
+              <Button onClick={handleSave} variant="primary" icon={saving ? <FaSpinner className="animate-spin" /> : <FaSave />} disabled={saving}>
+                {saving ? 'Saving...' : 'Save Changes'}
               </Button>
             </div>
           </Card>

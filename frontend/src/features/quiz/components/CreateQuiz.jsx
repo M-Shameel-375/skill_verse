@@ -6,6 +6,7 @@ import { FaSave, FaArrowLeft, FaTrash } from 'react-icons/fa';
 import Button from '../common/Button';
 import Card from '../common/Card';
 import toast from 'react-hot-toast';
+import { createQuiz } from '../../../api/quizApi';
 
 const validationSchema = Yup.object().shape({
   title: Yup.string().required('Title is required').min(5, 'Min 5 characters'),
@@ -35,10 +36,20 @@ const CreateQuiz = () => {
 
   const handleSubmit = async (values, { setSubmitting }) => {
     try {
+      const quizData = {
+        ...values,
+        courseId,
+        questions: values.questions.map((q, index) => ({
+          ...q,
+          correctAnswer: parseInt(q.correctAnswer, 10),
+        })),
+      };
+      
+      await createQuiz(quizData);
       toast.success('Quiz created successfully!');
       navigate(`/courses/${courseId}`);
     } catch (error) {
-      toast.error('Failed to create quiz');
+      toast.error(error.response?.data?.message || 'Failed to create quiz');
     } finally {
       setSubmitting(false);
     }

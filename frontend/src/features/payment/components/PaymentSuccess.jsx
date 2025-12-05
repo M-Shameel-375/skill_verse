@@ -1,25 +1,60 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaCheckCircle, FaDownload, FaArrowRight } from 'react-icons/fa';
+import { FaCheckCircle, FaDownload, FaArrowRight, FaSpinner } from 'react-icons/fa';
 import Button from '../common/Button';
 import Card from '../common/Card';
+import { verifyPayment, getPaymentById } from '../../../api/paymentApi';
 
 const PaymentSuccess = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session_id');
-  const [paymentDetails, setPaymentDetails] = React.useState(null);
+  const paymentId = searchParams.get('payment_id');
+  const [paymentDetails, setPaymentDetails] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setPaymentDetails({
-      id: sessionId,
-      courseName: 'Complete React Masterclass',
-      amount: 99.99,
-      date: new Date().toISOString(),
-      invoiceUrl: '#',
-    });
-  }, [sessionId]);
+    const fetchPaymentDetails = async () => {
+      try {
+        setLoading(true);
+        let data;
+        
+        if (sessionId) {
+          // Verify Stripe session
+          const response = await verifyPayment(sessionId);
+          data = response.data?.data || response.data;
+        } else if (paymentId) {
+          // Get payment by ID
+          const response = await getPaymentById(paymentId);
+          data = response.data?.data || response.data;
+        }
+        
+        if (data) {
+          setPaymentDetails({
+            id: data._id || data.id || sessionId || paymentId,
+            courseName: data.course?.title || data.courseName || 'Course',
+            amount: data.amount || 0,
+            date: data.createdAt || data.date || new Date().toISOString(),
+            invoiceUrl: data.invoiceUrl,
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching payment details:', err);
+        // Still show success page with basic info
+        setPaymentDetails({
+          id: sessionId || paymentId,
+          courseName: 'Your Course',
+          amount: 0,
+          date: new Date().toISOString(),
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchPaymentDetails();
+  }, [sessionId, paymentId]);
 
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.9 },

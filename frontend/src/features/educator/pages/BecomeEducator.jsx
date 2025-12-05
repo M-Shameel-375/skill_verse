@@ -22,6 +22,8 @@ import {
   TrendingUp,
   Globe,
 } from 'lucide-react';
+import { applyAsEducator } from '@/api/userApi';
+import toast from 'react-hot-toast';
 
 const BecomeEducator = () => {
   const { user, isSignedIn } = useUser();
@@ -53,11 +55,16 @@ const BecomeEducator = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    setIsSubmitting(false);
-    setSubmitted(true);
+    try {
+      await applyAsEducator(formData);
+      setSubmitted(true);
+      toast.success('Application submitted successfully!');
+    } catch (error) {
+      console.error('Failed to submit application:', error);
+      toast.error(error.response?.data?.message || 'Failed to submit application');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const benefits = [

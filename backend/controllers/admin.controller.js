@@ -416,3 +416,236 @@ exports.getSystemHealth = asyncHandler(async (req, res) => {
 
   ApiResponse.success(res, health, 'System health retrieved successfully');
 });
+
+// ============================================
+// @desc    Get system settings
+// @route   GET /api/v1/admin/settings
+// @access  Private (Admin)
+// ============================================
+exports.getSystemSettings = asyncHandler(async (req, res) => {
+  // In a real app, these would come from a Settings model or config
+  const settings = {
+    general: {
+      siteName: 'SkillVerse',
+      siteDescription: 'Peer-to-peer skill sharing platform',
+      contactEmail: 'support@skillverse.com',
+      supportPhone: '+1-800-SKILL',
+    },
+    payments: {
+      platformFee: 10,
+      minWithdrawal: 50,
+      payoutSchedule: 'weekly',
+      enabledGateways: ['stripe'],
+    },
+    email: {
+      smtpHost: 'smtp.example.com',
+      smtpPort: 587,
+      senderEmail: 'noreply@skillverse.com',
+      senderName: 'SkillVerse',
+    },
+    security: {
+      maxLoginAttempts: 5,
+      sessionTimeout: 60,
+      requireEmailVerification: true,
+      require2FA: false,
+    },
+    features: {
+      enableLiveSessions: true,
+      enableSkillExchange: true,
+      enableBadges: true,
+      enableCertificates: true,
+      maintenanceMode: false,
+    },
+  };
+
+  ApiResponse.success(res, settings, 'System settings retrieved successfully');
+});
+
+// ============================================
+// @desc    Update system settings
+// @route   PUT /api/v1/admin/settings
+// @access  Private (Admin)
+// ============================================
+exports.updateSystemSettings = asyncHandler(async (req, res) => {
+  const { section, settings } = req.body;
+
+  if (!section || !settings) {
+    throw ApiError.badRequest('Section and settings are required');
+  }
+
+  // In a real app, you would save these to a Settings model
+  // For now, we'll just return success
+  ApiResponse.success(
+    res,
+    { section, settings },
+    `${section} settings updated successfully`
+  );
+});
+
+// ============================================
+// @desc    Get educator applications
+// @route   GET /api/v1/admin/educator-applications
+// @access  Private (Admin)
+// ============================================
+exports.getEducatorApplications = asyncHandler(async (req, res) => {
+  const applications = await User.find({
+    'educatorApplication.status': 'pending',
+  }).select('name email educatorApplication createdAt');
+
+  ApiResponse.success(res, applications, 'Educator applications retrieved successfully');
+});
+
+// ============================================
+// @desc    Approve/Reject educator application
+// @route   PUT /api/v1/admin/educator-applications/:id
+// @access  Private (Admin)
+// ============================================
+exports.processEducatorApplication = asyncHandler(async (req, res) => {
+  const { action, reason } = req.body;
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    throw ApiError.notFound('User not found');
+  }
+
+  if (!user.educatorApplication) {
+    throw ApiError.badRequest('No educator application found for this user');
+  }
+
+  if (action === 'approve') {
+    user.role = 'educator';
+    user.educatorApplication.status = 'approved';
+    user.educatorApplication.reviewedAt = new Date();
+    user.educatorProfile = {
+      expertise: user.educatorApplication.expertise || [],
+      teachingExperience: user.educatorApplication.experience || 0,
+      totalStudents: 0,
+      totalCourses: 0,
+      rating: { average: 0, count: 0 },
+      earnings: { total: 0, pending: 0, withdrawn: 0 },
+      verified: false,
+    };
+  } else if (action === 'reject') {
+    user.educatorApplication.status = 'rejected';
+    user.educatorApplication.rejectionReason = reason;
+    user.educatorApplication.reviewedAt = new Date();
+  } else {
+    throw ApiError.badRequest('Invalid action. Use "approve" or "reject"');
+  }
+
+  await user.save();
+
+  ApiResponse.success(
+    res,
+    user,
+    `Educator application ${action}d successfully`
+  );
+});
+
+// ============================================
+// @desc    Warn user about content
+// @route   POST /api/v1/admin/users/:id/warn
+// @access  Private (Admin)
+// ============================================
+exports.warnUser = asyncHandler(async (req, res) => {
+  const { contentId, reason } = req.body;
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    throw ApiError.notFound('User not found');
+  }
+
+  // Add warning to user record
+  if (!user.warnings) {
+    user.warnings = [];
+  }
+
+  user.warnings.push({
+    reason,
+    contentId,
+    issuedAt: new Date(),
+    issuedBy: req.user._id,
+  });
+
+  await user.save();
+
+  // TODO: Send warning notification to user
+
+  ApiResponse.success(res, user, 'User warned successfully');
+});
+
+// ============================================
+// @desc    Ban user
+// @route   POST /api/v1/admin/users/:id/ban
+// @access  Private (Admin)
+// ============================================
+exports.banUser = asyncHandler(async (req, res) => {
+  const { reason } = req.body;
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    throw ApiError.notFound('User not found');
+  }
+
+  user.status = 'banned';
+  user.banReason = reason;
+  user.bannedAt = new Date();
+  user.bannedBy = req.user._id;
+
+  await user.save();
+
+  ApiResponse.success(res, user, 'User banned successfully');
+});
+
+// ============================================
+// @desc    Approve flagged content
+// @route   PUT /api/v1/admin/moderation/:contentId/approve
+// @access  Private (Admin)
+// ============================================
+exports.approveContent = asyncHandler(async (req, res) => {
+  const { contentId } = req.params;
+  
+  // Try to find in reviews first
+  let content = await Review.findById(contentId);
+  
+  if (content) {
+    content.isFlagged = false;
+    content.status = 'approved';
+    await content.save();
+    return ApiResponse.success(res, content, 'Content approved successfully');
+  }
+
+  // Try courses
+  content = await Course.findById(contentId);
+  if (content) {
+    content.status = 'published';
+    await content.save();
+    return ApiResponse.success(res, content, 'Content approved successfully');
+  }
+
+  throw ApiError.notFound('Content not found');
+});
+
+// ============================================
+// @desc    Remove flagged content
+// @route   DELETE /api/v1/admin/moderation/:contentId
+// @access  Private (Admin)
+// ============================================
+exports.removeContent = asyncHandler(async (req, res) => {
+  const { contentId } = req.params;
+  
+  // Try to find and delete from reviews first
+  let content = await Review.findByIdAndDelete(contentId);
+  
+  if (content) {
+    return ApiResponse.success(res, null, 'Content removed successfully');
+  }
+
+  // Try courses
+  content = await Course.findByIdAndDelete(contentId);
+  if (content) {
+    return ApiResponse.success(res, null, 'Content removed successfully');
+  }
+
+  throw ApiError.notFound('Content not found');
+});

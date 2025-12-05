@@ -2,7 +2,7 @@
 // LEARNER DASHBOARD PAGE
 // ============================================
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -18,6 +18,7 @@ import {
   FaPlay,
   FaCalendar,
   FaUsers,
+  FaSpinner,
 } from 'react-icons/fa';
 import {
   Card,
@@ -27,6 +28,9 @@ import {
   CardDescription,
 } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { getEnrolledCourses } from '@/api/courseApi';
+import { getUserStatistics, getUserCertificates } from '@/api/userApi';
+import { getMyBadges } from '@/api/badgeApi';
 
 // ============================================
 // CONTINUE LEARNING CARD
@@ -113,35 +117,82 @@ const LearnerDashboard = ({ user: dbUser }) => {
   const navigate = useNavigate();
   const { user } = useUser();
   
-  // Mock data for now
-  const [enrolledCourses] = useState([
-    {
-      _id: '1',
-      title: 'Complete React Developer Course',
-      thumbnail: { url: 'https://via.placeholder.com/200x120' },
-      instructor: { name: 'John Doe' },
-      progress: 65,
-      completedLectures: 13,
-      totalLectures: 20,
-    },
-    {
-      _id: '2',
-      title: 'Node.js Masterclass',
-      thumbnail: { url: 'https://via.placeholder.com/200x120' },
-      instructor: { name: 'Jane Smith' },
-      progress: 30,
-      completedLectures: 6,
-      totalLectures: 20,
-    },
-  ]);
+  // State for API data
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
+  const [statistics, setStatistics] = useState({
+    coursesCompleted: 0,
+    certificatesEarned: 0,
+    totalPoints: 0,
+    currentStreak: 0,
+    learningHours: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const statistics = {
-    coursesCompleted: 5,
-    certificatesEarned: 3,
-    totalPoints: 2450,
-    currentStreak: 7,
-    learningHours: 45,
-  };
+  // Fetch dashboard data
+  const fetchDashboardData = useCallback(async () => {
+    if (!dbUser?._id) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch enrolled courses and user stats in parallel
+      const [coursesRes, statsRes, certsRes, badgesRes] = await Promise.allSettled([
+        getEnrolledCourses(),
+        getUserStatistics(dbUser._id),
+        getUserCertificates(dbUser._id),
+        getMyBadges(),
+      ]);
+
+      // Handle enrolled courses
+      if (coursesRes.status === 'fulfilled' && coursesRes.value?.data?.data) {
+        setEnrolledCourses(coursesRes.value.data.data.courses || coursesRes.value.data.data || []);
+      }
+
+      // Build statistics from various sources
+      const stats = {
+        coursesCompleted: 0,
+        certificatesEarned: 0,
+        totalPoints: dbUser?.gamification?.points || 0,
+        currentStreak: dbUser?.gamification?.streak || 0,
+        learningHours: 0,
+      };
+
+      // From user stats API
+      if (statsRes.status === 'fulfilled' && statsRes.value?.data?.data) {
+        const apiStats = statsRes.value.data.data;
+        stats.coursesCompleted = apiStats.coursesCompleted || apiStats.completedCourses || 0;
+        stats.learningHours = apiStats.learningHours || apiStats.totalHours || 0;
+      }
+
+      // From certificates API
+      if (certsRes.status === 'fulfilled' && certsRes.value?.data?.data) {
+        const certs = certsRes.value.data.data;
+        stats.certificatesEarned = Array.isArray(certs) ? certs.length : certs.total || 0;
+      }
+
+      // From badges API
+      if (badgesRes.status === 'fulfilled' && badgesRes.value?.data?.data) {
+        const badges = badgesRes.value.data.data;
+        // Add badge count if needed
+      }
+
+      setStatistics(stats);
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  }, [dbUser?._id, dbUser?.gamification?.points, dbUser?.gamification?.streak]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -174,153 +225,170 @@ const LearnerDashboard = ({ user: dbUser }) => {
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatsCard
-            title="Courses Enrolled"
-            value={statistics.coursesCompleted || 0}
-            icon={<FaBook className="h-4 w-4 text-muted-foreground" />}
-            change="+3 this month"
-            changeType="increase"
-          />
+        {/* Loading State */}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <FaSpinner className="animate-spin text-3xl text-blue-600 mr-3" />
+            <span className="text-gray-600">Loading your dashboard...</span>
+          </div>
+        ) : error ? (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <p className="text-red-600 mb-4">{error}</p>
+              <Button onClick={fetchDashboardData}>Try Again</Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <StatsCard
+                title="Courses Enrolled"
+                value={enrolledCourses.length || 0}
+                icon={<FaBook className="h-4 w-4 text-muted-foreground" />}
+                change={`${statistics.coursesCompleted} completed`}
+                changeType="increase"
+              />
+              
+              <StatsCard
+                title="Certificates Earned"
+                value={statistics.certificatesEarned || 0}
+                icon={<FaCertificate className="h-4 w-4 text-muted-foreground" />}
+                change="Keep learning!"
+                changeType="increase"
+              />
+              
+              <StatsCard
+                title="Total Points"
+                value={statistics.totalPoints || 0}
+                icon={<FaTrophy className="h-4 w-4 text-muted-foreground" />}
+                change={`Level ${dbUser?.gamification?.level || 1}`}
+                changeType="increase"
+              />
           
-          <StatsCard
-            title="Certificates Earned"
-            value={statistics.certificatesEarned || 0}
-            icon={<FaCertificate className="h-4 w-4 text-muted-foreground" />}
-            change="+2 this month"
-            changeType="increase"
-          />
-          
-          <StatsCard
-            title="Total Points"
-            value={statistics.totalPoints || 0}
-            icon={<FaTrophy className="h-4 w-4 text-muted-foreground" />}
-            change="+150 this week"
-            changeType="increase"
-          />
-          
-          <StatsCard
-            title="Current Streak"
-            value={`${statistics.currentStreak || 0} days`}
-            icon={<FaFire className="h-4 w-4 text-muted-foreground" />}
-            change={statistics.currentStreak > 0 ? 'Keep it up!' : 'Start today!'}
-            changeType={statistics.currentStreak > 0 ? 'increase' : 'decrease'}
-          />
-        </div>
+              <StatsCard
+                title="Current Streak"
+                value={`${statistics.currentStreak || 0} days`}
+                icon={<FaFire className="h-4 w-4 text-muted-foreground" />}
+                change={statistics.currentStreak > 0 ? 'Keep it up!' : 'Start today!'}
+                changeType={statistics.currentStreak > 0 ? 'increase' : 'decrease'}
+              />
+            </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Continue Learning */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Continue Learning */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Continue Learning
-                </h2>
-                <Link
-                  to="/my-learning"
-                  className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
-                >
-                  View All <FaArrowRight />
-                </Link>
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Left Column - Continue Learning */}
+              <div className="lg:col-span-2 space-y-8">
+                {/* Continue Learning */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      Continue Learning
+                    </h2>
+                    <Link
+                      to="/my-learning"
+                      className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2"
+                    >
+                      View All <FaArrowRight />
+                    </Link>
+                  </div>
+
+                  {enrolledCourses.length === 0 ? (
+                    <Card>
+                      <CardContent className="p-6 text-center">
+                        <div className="text-5xl mb-4">📚</div>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                          No courses yet
+                        </h3>
+                        <p className="text-gray-600 mb-4">
+                          Start your learning journey by enrolling in a course
+                        </p>
+                        <Button onClick={() => navigate('/courses')}>
+                          Explore Courses
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="space-y-4">
+                      {enrolledCourses.slice(0, 3).map((course) => (
+                        <ContinueLearningCard key={course._id} course={course} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Learning Progress */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Learning Progress</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700">This Week</span>
+                          <span className="text-sm text-gray-600">{statistics.learningHours || 0}h</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-green-600 h-2 rounded-full" style={{ width: `${Math.min((statistics.learningHours || 0) * 10, 100)}%` }} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-gray-700">Courses Progress</span>
+                          <span className="text-sm text-gray-600">{statistics.coursesCompleted}/{enrolledCourses.length} completed</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${enrolledCourses.length > 0 ? (statistics.coursesCompleted / enrolledCourses.length) * 100 : 0}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
-              {enrolledCourses.length === 0 ? (
+              {/* Right Column - Quick Actions */}
+              <div className="space-y-8">
                 <Card>
-                  <CardContent className="p-6 text-center">
-                    <div className="text-5xl mb-4">📚</div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                      No courses yet
-                    </h3>
-                    <p className="text-gray-600 mb-4">
-                      Start your learning journey by enrolling in a course
+                  <CardHeader>
+                    <CardTitle>Quick Actions</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/courses')}>
+                        <FaBook className="mr-2 h-4 w-4" /> Browse Courses
+                      </Button>
+                      <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/certificates')}>
+                        <FaCertificate className="mr-2 h-4 w-4" /> View Certificates
+                      </Button>
+                      <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/achievements')}>
+                        <FaTrophy className="mr-2 h-4 w-4" /> View Achievements
+                      </Button>
+                      <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/skill-exchange')}>
+                        <FaUsers className="mr-2 h-4 w-4" /> Skill Exchange
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Want to Teach?</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-600 mb-4 text-sm">
+                      Share your knowledge and earn money by becoming an educator.
                     </p>
-                    <Button onClick={() => navigate('/courses')}>
-                      Explore Courses
+                    <Button onClick={() => navigate('/become-educator')} className="w-full">
+                      Become an Educator
                     </Button>
                   </CardContent>
                 </Card>
-              ) : (
-                <div className="space-y-4">
-                  {enrolledCourses.slice(0, 3).map((course) => (
-                    <ContinueLearningCard key={course._id} course={course} />
-                  ))}
-                </div>
-              )}
+              </div>
             </div>
-
-            {/* Learning Progress */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Learning Progress</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">This Week</span>
-                      <span className="text-sm text-gray-600">{statistics.learningHours || 0}h</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-green-600 h-2 rounded-full" style={{ width: '75%' }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">Monthly Goal</span>
-                      <span className="text-sm text-gray-600">12/20 hours</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-blue-600 h-2 rounded-full" style={{ width: '60%' }} />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column - Quick Actions */}
-          <div className="space-y-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/courses')}>
-                    <FaBook className="mr-2 h-4 w-4" /> Browse Courses
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/certificates')}>
-                    <FaCertificate className="mr-2 h-4 w-4" /> View Certificates
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/achievements')}>
-                    <FaTrophy className="mr-2 h-4 w-4" /> View Achievements
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/skill-exchange')}>
-                    <FaUsers className="mr-2 h-4 w-4" /> Skill Exchange
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Want to Teach?</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 mb-4 text-sm">
-                  Share your knowledge and earn money by becoming an educator.
-                </p>
-                <Button onClick={() => navigate('/become-educator')} className="w-full">
-                  Become an Educator
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </>
   );

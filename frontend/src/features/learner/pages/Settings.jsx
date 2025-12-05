@@ -2,7 +2,7 @@
 // SETTINGS PAGE
 // ============================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useUser } from '@clerk/clerk-react';
 import {
@@ -12,6 +12,7 @@ import {
   FaTrash,
   FaSave,
   FaUpload,
+  FaSpinner,
 } from 'react-icons/fa';
 import {
   Card,
@@ -25,26 +26,29 @@ import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
+import { getUserProfile, updateProfile } from '@/api/userApi';
 
 // ============================================
 // ACCOUNT SETTINGS TAB
 // ============================================
-const AccountSettings = ({ user }) => {
-  const [imagePreview, setImagePreview] = useState(user?.imageUrl || null);
+const AccountSettings = ({ user, dbUser }) => {
+  const [imagePreview, setImagePreview] = useState(dbUser?.profileImage?.url || user?.imageUrl || null);
   const [formData, setFormData] = useState({
-    name: user?.fullName || '',
-    email: user?.primaryEmailAddress?.emailAddress || '',
-    phone: '',
-    bio: '',
-    title: '',
-    city: '',
-    country: '',
+    name: dbUser?.name || user?.fullName || '',
+    email: dbUser?.email || user?.primaryEmailAddress?.emailAddress || '',
+    phone: dbUser?.phone || '',
+    bio: dbUser?.bio || '',
+    title: dbUser?.title || '',
+    city: dbUser?.location?.city || '',
+    country: dbUser?.location?.country || '',
   });
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setImageFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -62,10 +66,36 @@ const AccountSettings = ({ user }) => {
     e.preventDefault();
     setSaving(true);
     try {
-      // Simulating API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const updateData = {
+        name: formData.name,
+        phone: formData.phone,
+        bio: formData.bio,
+        title: formData.title,
+        location: {
+          city: formData.city,
+          country: formData.country,
+        },
+      };
+
+      // If there's a new image, use FormData
+      if (imageFile) {
+        const formDataObj = new FormData();
+        formDataObj.append('profileImage', imageFile);
+        Object.keys(updateData).forEach(key => {
+          if (typeof updateData[key] === 'object') {
+            formDataObj.append(key, JSON.stringify(updateData[key]));
+          } else {
+            formDataObj.append(key, updateData[key]);
+          }
+        });
+        await updateProfile(formDataObj);
+      } else {
+        await updateProfile(updateData);
+      }
+
       toast.success('Profile updated successfully!');
     } catch (error) {
+      console.error('Failed to update profile:', error);
       toast.error('Failed to update profile');
     } finally {
       setSaving(false);

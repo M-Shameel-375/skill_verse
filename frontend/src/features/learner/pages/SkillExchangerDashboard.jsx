@@ -2,7 +2,7 @@
 // SKILL EXCHANGER DASHBOARD PAGE
 // ============================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -16,6 +16,7 @@ import {
   FaClock,
   FaCheckCircle,
   FaHourglass,
+  FaSpinner,
 } from 'react-icons/fa';
 import {
   Card,
@@ -24,6 +25,8 @@ import {
   CardTitle,
 } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { getMyExchanges, getPendingRequests } from '@/api/skillExchangeApi';
+import toast from 'react-hot-toast';
 
 const StatsCard = ({ title, value, icon, color }) => {
   const colorClasses = {
@@ -51,32 +54,62 @@ const StatsCard = ({ title, value, icon, color }) => {
 const SkillExchangerDashboard = ({ user: dbUser }) => {
   const navigate = useNavigate();
   const { user } = useUser();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalExchanges: 0,
+    activeExchanges: 0,
+    completedExchanges: 0,
+    averageRating: 0,
+  });
+  const [pendingRequests, setPendingRequests] = useState([]);
 
-  const stats = {
-    totalExchanges: 12,
-    activeExchanges: 3,
-    completedExchanges: 9,
-    averageRating: 4.8,
-  };
+  // Fetch dashboard data
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
 
-  const [pendingRequests] = useState([
-    {
-      _id: '1',
-      fromUser: { name: 'Alex Johnson', profileImage: { url: 'https://via.placeholder.com/40' } },
-      skill: 'Python Programming',
-      mySkill: 'Web Design',
-      status: 'pending',
-      createdAt: new Date(),
-    },
-    {
-      _id: '2',
-      fromUser: { name: 'Sarah Williams', profileImage: { url: 'https://via.placeholder.com/40' } },
-      skill: 'Data Analysis',
-      mySkill: 'JavaScript',
-      status: 'pending',
-      createdAt: new Date(Date.now() - 86400000),
-    },
-  ]);
+      const [exchangesRes, requestsRes] = await Promise.all([
+        getMyExchanges().catch(() => ({ data: { exchanges: [] } })),
+        getPendingRequests().catch(() => ({ data: { requests: [] } })),
+      ]);
+
+      const exchanges = exchangesRes.data?.exchanges || exchangesRes.data || [];
+      const requests = requestsRes.data?.requests || requestsRes.data || [];
+
+      // Calculate stats
+      const active = exchanges.filter(e => e.status === 'active' || e.status === 'in-progress').length;
+      const completed = exchanges.filter(e => e.status === 'completed').length;
+      const ratings = exchanges.filter(e => e.rating).map(e => e.rating);
+      const avgRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
+
+      setStats({
+        totalExchanges: exchanges.length,
+        activeExchanges: active,
+        completedExchanges: completed,
+        averageRating: avgRating.toFixed(1),
+      });
+
+      // Format pending requests
+      setPendingRequests(requests.slice(0, 5).map(req => ({
+        _id: req._id,
+        fromUser: req.fromUser || req.requester || { name: 'User' },
+        skill: req.skillOffered?.name || req.offeredSkill?.name || 'Skill',
+        mySkill: req.skillWanted?.name || req.wantedSkill?.name || 'Skill',
+        status: req.status || 'pending',
+        createdAt: req.createdAt ? new Date(req.createdAt) : new Date(),
+      })));
+
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+      toast.error('Failed to load dashboard');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -86,6 +119,14 @@ const SkillExchangerDashboard = ({ user: dbUser }) => {
   };
 
   const userName = dbUser?.name || user?.firstName || 'Exchanger';
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <FaSpinner className="animate-spin text-4xl text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <>

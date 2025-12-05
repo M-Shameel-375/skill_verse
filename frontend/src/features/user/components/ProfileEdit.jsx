@@ -6,6 +6,7 @@ import { FaSave, FaArrowLeft } from 'react-icons/fa';
 import Button from '../common/Button';
 import Card from '../common/Card';
 import toast from 'react-hot-toast';
+import { updateUserProfile } from '../../../api/userApi';
 
 const validationSchema = Yup.object().shape({
   name: Yup.string().required('Name is required'),
@@ -32,13 +33,16 @@ const ProfileEdit = ({ profile, onSave }) => {
 
   const handleSubmit = async (values, { setSubmitting }) => {
     try {
+      if (profile?._id) {
+        await updateUserProfile(profile._id, values);
+      }
       if (onSave) {
         onSave(values);
       }
       toast.success('Profile updated successfully!');
       navigate(-1);
     } catch (error) {
-      toast.error('Failed to update profile');
+      toast.error(error.response?.data?.message || 'Failed to update profile');
     } finally {
       setSubmitting(false);
     }

@@ -1,29 +1,68 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { FaMicrophone, FaMicrophoneSlash, FaVideo, FaVideoSlash, FaPhone, FaShareScreen, FaHand, FaEllipsisV } from 'react-icons/fa';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { FaMicrophone, FaMicrophoneSlash, FaVideo, FaVideoSlash, FaPhone, FaShareScreen, FaHand, FaEllipsisV, FaSpinner } from 'react-icons/fa';
 import Card from '../common/Card';
 import toast from 'react-hot-toast';
+import { getSessionById, joinLiveSession, leaveLiveSession, getSessionParticipants } from '../../../api/liveSessionApi';
 
 const SessionRoom = () => {
   const { sessionId } = useParams();
+  const navigate = useNavigate();
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
-  const [participants, setParticipants] = useState([
-    { id: 1, name: 'John Instructor', role: 'Instructor', avatar: 'https://i.pravatar.cc/150?img=1' },
-    { id: 2, name: 'You', avatar: 'https://i.pravatar.cc/150?img=2' },
-    { id: 3, name: 'Alice Smith', avatar: 'https://i.pravatar.cc/150?img=3' },
-    { id: 4, name: 'Bob Johnson', avatar: 'https://i.pravatar.cc/150?img=4' },
-  ]);
+  const [participants, setParticipants] = useState([]);
   const [showParticipants, setShowParticipants] = useState(true);
 
   const videoRef = useRef(null);
 
-  useEffect(() => {
-    // Initialize WebRTC connection
-    console.log('Initializing session room for session:', sessionId);
+  const fetchSessionData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Fetch session details
+      const sessionResponse = await getSessionById(sessionId);
+      const sessionData = sessionResponse.data?.data || sessionResponse.data;
+      setSession(sessionData);
+      
+      // Fetch participants
+      try {
+        const participantsResponse = await getSessionParticipants(sessionId);
+        const participantsData = participantsResponse.data?.data || participantsResponse.data;
+        setParticipants(Array.isArray(participantsData) ? participantsData : participantsData.participants || []);
+      } catch (err) {
+        // If participants API fails, use session data
+        setParticipants(sessionData.participants || []);
+      }
+      
+      // Join the session
+      try {
+        await joinLiveSession(sessionId);
+      } catch (err) {
+        // Ignore if already joined
+        console.log('Join session:', err.response?.data?.message);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to join session');
+      console.error('Error fetching session:', err);
+    } finally {
+      setLoading(false);
+    }
   }, [sessionId]);
+
+  useEffect(() => {
+    fetchSessionData();
+    
+    // Cleanup: Leave session when unmounting
+    return () => {
+      leaveLiveSession(sessionId).catch(console.error);
+    };
+  }, [fetchSessionData, sessionId]);
 
   const handleMicToggle = () => {
     setIsMuted(!isMuted);
@@ -45,11 +84,43 @@ const SessionRoom = () => {
     toast.success(handRaised ? 'Hand lowered' : 'Hand raised');
   };
 
-  const handleLeaveSession = () => {
+  const handleLeaveSession = async () => {
     if (window.confirm('Are you sure you want to leave the session?')) {
-      window.location.href = '/live-sessions';
+      try {
+        await leaveLiveSession(sessionId);
+        navigate('/live-sessions');
+      } catch (err) {
+        navigate('/live-sessions');
+      }
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <FaSpinner className="animate-spin text-4xl text-blue-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="bg-gray-800 p-8 rounded-lg text-center">
+          <p className="text-red-400 mb-4">{error}</p>
+          <button
+            onClick={() => navigate('/live-sessions')}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+          >
+            Back to Sessions
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Get instructor info from session or first participant with instructor role
+  const instructor = session?.instructor || participants.find(p => p.role === 'Instructor' || p.isInstructor) || { name: 'Instructor' };
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
@@ -63,11 +134,11 @@ const SessionRoom = () => {
           >
             <div className="text-center">
               <img
-                src="https://i.pravatar.cc/150?img=1"
-                alt="Instructor"
+                src={instructor.avatar || instructor.profileImage || `https://i.pravatar.cc/150?img=${instructor._id || 1}`}
+                alt={instructor.name || 'Instructor'}
                 className="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-white"
               />
-              <p className="text-white text-lg font-semibold">John Instructor</p>
+              <p className="text-white text-lg font-semibold">{instructor.name || 'Instructor'}</p>
               <span className="inline-block mt-2 bg-green-500 text-white px-3 py-1 rounded-full text-sm">
                 🔴 Live
               </span>
@@ -75,14 +146,14 @@ const SessionRoom = () => {
 
             {/* Participant overlay videos */}
             <div className="absolute top-4 right-4 space-y-2">
-              {participants.slice(1, 3).map((participant) => (
+              {participants.slice(0, 3).map((participant) => (
                 <div
-                  key={participant.id}
+                  key={participant._id || participant.id}
                   className="w-24 h-32 bg-gray-700 rounded-lg overflow-hidden border-2 border-gray-600 flex items-center justify-center"
                 >
                   <div className="text-center">
                     <img
-                      src={participant.avatar}
+                      src={participant.avatar || participant.profileImage || `https://i.pravatar.cc/150?img=${participant._id || participant.id || 1}`}
                       alt={participant.name}
                       className="w-full h-full object-cover"
                     />
@@ -94,8 +165,8 @@ const SessionRoom = () => {
             {/* Top info bar */}
             <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/50 to-transparent p-4 flex justify-between items-center">
               <div className="text-white">
-                <h2 className="text-2xl font-bold">React Hooks Deep Dive</h2>
-                <p className="text-sm opacity-75">Started 5 mins ago • 24 participants</p>
+                <h2 className="text-2xl font-bold">{session?.title || 'Live Session'}</h2>
+                <p className="text-sm opacity-75">{session?.status === 'live' ? 'Live now' : 'Session'} • {participants.length} participants</p>
               </div>
               <button
                 onClick={() => setShowParticipants(!showParticipants)}
@@ -115,9 +186,9 @@ const SessionRoom = () => {
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {participants.map((participant) => (
-                <div key={participant.id} className="flex items-center gap-3 p-2 hover:bg-gray-700 rounded-lg cursor-pointer">
+                <div key={participant._id || participant.id} className="flex items-center gap-3 p-2 hover:bg-gray-700 rounded-lg cursor-pointer">
                   <img
-                    src={participant.avatar}
+                    src={participant.avatar || participant.profileImage || `https://i.pravatar.cc/150?img=${participant._id || participant.id || 1}`}
                     alt={participant.name}
                     className="w-8 h-8 rounded-full"
                   />
@@ -125,7 +196,7 @@ const SessionRoom = () => {
                     <p className="text-white text-sm font-medium truncate">{participant.name}</p>
                     {participant.role && <p className="text-gray-400 text-xs">{participant.role}</p>}
                   </div>
-                  {participant.role === 'Instructor' && <span className="text-yellow-400 text-xs">★</span>}
+                  {(participant.role === 'Instructor' || participant.isInstructor) && <span className="text-yellow-400 text-xs">★</span>}
                 </div>
               ))}
             </div>

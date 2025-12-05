@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { FaDollarSign, FaChartLine, FaUsers, FaBook } from 'react-icons/fa';
+import React, { useEffect, useState, useCallback } from 'react';
+import { FaDollarSign, FaChartLine, FaUsers, FaBook, FaSpinner } from 'react-icons/fa';
 import Card from '../common/Card';
 import { motion } from 'framer-motion';
+import { getEarnings, getTransactions } from '../../../api/paymentApi';
 
 const EarningsDashboard = () => {
   const [earnings, setEarnings] = useState({
@@ -10,17 +11,34 @@ const EarningsDashboard = () => {
     totalStudents: 0,
     activeCourses: 0,
   });
+  const [topCourses, setTopCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchEarnings = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getEarnings();
+      const data = response.data?.data || response.data;
+      setEarnings({
+        totalEarnings: data.totalEarnings || data.total || 0,
+        monthlyEarnings: data.monthlyEarnings || data.monthly || 0,
+        totalStudents: data.totalStudents || data.students || 0,
+        activeCourses: data.activeCourses || data.courses || 0,
+      });
+      setTopCourses(data.topCourses || []);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch earnings');
+      console.error('Error fetching earnings:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    setEarnings({
-      totalEarnings: 4580.5,
-      monthlyEarnings: 850.25,
-      totalStudents: 245,
-      activeCourses: 5,
-    });
-    setLoading(false);
-  }, []);
+    fetchEarnings();
+  }, [fetchEarnings]);
 
   const statCards = [
     { icon: FaDollarSign, label: 'Total Earnings', value: `$${earnings.totalEarnings.toFixed(2)}`, color: 'green' },
@@ -83,12 +101,14 @@ const EarningsDashboard = () => {
           <div className="p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Top Performing Courses</h2>
             <div className="space-y-3">
-              {['React Masterclass', 'Node.js Backend', 'Full Stack Development'].map((course, i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                  <span className="text-gray-700">{course}</span>
-                  <span className="font-semibold text-green-600">${(1200 + i * 200).toFixed(2)}</span>
+              {topCourses.length > 0 ? topCourses.map((course, i) => (
+                <div key={course._id || i} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                  <span className="text-gray-700">{course.title || course.name}</span>
+                  <span className="font-semibold text-green-600">${(course.earnings || course.revenue || 0).toFixed(2)}</span>
                 </div>
-              ))}
+              )) : (
+                <p className="text-gray-500 text-center py-4">No course data available yet</p>
+              )}
             </div>
           </div>
         </Card>

@@ -1,16 +1,37 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { FaPaperPlane, FaSmile, FaPaperclip } from 'react-icons/fa';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { FaPaperPlane, FaSmile, FaPaperclip, FaSpinner } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import { getSessionMessages, sendSessionMessage } from '../../../api/liveSessionApi';
 
-const SessionChat = () => {
-  const [messages, setMessages] = useState([
-    { id: 1, sender: 'John Instructor', avatar: 'https://i.pravatar.cc/150?img=1', message: 'Welcome to the session!', timestamp: '10:30 AM', isInstructor: true },
-    { id: 2, sender: 'Alice Smith', avatar: 'https://i.pravatar.cc/150?img=3', message: 'Thanks for joining!', timestamp: '10:31 AM' },
-    { id: 3, sender: 'You', avatar: 'https://i.pravatar.cc/150?img=2', message: 'Great session so far', timestamp: '10:32 AM', isOwn: true },
-  ]);
+const SessionChat = ({ sessionId, sessionTitle = 'Live Session' }) => {
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [newMessage, setNewMessage] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef(null);
+
+  const fetchMessages = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      setLoading(true);
+      const response = await getSessionMessages(sessionId);
+      const data = response.data?.data || response.data;
+      setMessages(Array.isArray(data) ? data : data.messages || []);
+    } catch (err) {
+      console.error('Error fetching messages:', err);
+      // Keep empty messages array on error
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    fetchMessages();
+    // Poll for new messages every 5 seconds
+    const interval = setInterval(fetchMessages, 5000);
+    return () => clearInterval(interval);
+  }, [fetchMessages]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -20,21 +41,19 @@ const SessionChat = () => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = () => {
-    if (!newMessage.trim()) return;
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !sessionId) return;
 
-    const message = {
-      id: messages.length + 1,
-      sender: 'You',
-      avatar: 'https://i.pravatar.cc/150?img=2',
-      message: newMessage,
-      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      isOwn: true,
-    };
-
-    setMessages([...messages, message]);
-    setNewMessage('');
-    toast.success('Message sent');
+    try {
+      setSending(true);
+      await sendSessionMessage(sessionId, { message: newMessage });
+      setNewMessage('');
+      fetchMessages(); // Refresh messages
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send message');
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleFileShare = () => {
@@ -48,38 +67,50 @@ const SessionChat = () => {
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 text-white">
         <h3 className="font-bold text-lg">Session Chat</h3>
-        <p className="text-sm opacity-90">React Hooks Deep Dive</p>
+        <p className="text-sm opacity-90">{sessionTitle}</p>
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg) => (
-          <div key={msg.id} className={`flex gap-3 ${msg.isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-            <img
-              src={msg.avatar}
-              alt={msg.sender}
-              className="w-8 h-8 rounded-full flex-shrink-0"
-            />
-            <div className={`flex flex-col gap-1 ${msg.isOwn ? 'items-end' : 'items-start'}`}>
-              <div className="flex items-center gap-2">
-                <span className={`text-sm font-medium ${msg.isInstructor ? 'text-yellow-600' : 'text-gray-900'}`}>
-                  {msg.sender}
-                  {msg.isInstructor && ' 👨‍🏫'}
-                </span>
-                <span className="text-xs text-gray-500">{msg.timestamp}</span>
-              </div>
-              <div
-                className={`px-4 py-2 rounded-lg max-w-xs break-words ${
-                  msg.isOwn
-                    ? 'bg-blue-500 text-white rounded-br-none'
-                    : 'bg-gray-100 text-gray-900 rounded-bl-none'
-                }`}
-              >
-                {msg.message}
+        {loading && messages.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <FaSpinner className="animate-spin text-2xl text-blue-600" />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="text-center text-gray-500 py-8">
+            No messages yet. Start the conversation!
+          </div>
+        ) : (
+          messages.map((msg) => (
+            <div key={msg._id || msg.id} className={`flex gap-3 ${msg.isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+              <img
+                src={msg.avatar || msg.sender?.avatar || msg.sender?.profileImage || `https://i.pravatar.cc/150?img=${msg.sender?._id || 1}`}
+                alt={msg.sender?.name || msg.sender || 'User'}
+                className="w-8 h-8 rounded-full flex-shrink-0"
+              />
+              <div className={`flex flex-col gap-1 ${msg.isOwn ? 'items-end' : 'items-start'}`}>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-medium ${msg.isInstructor ? 'text-yellow-600' : 'text-gray-900'}`}>
+                    {msg.sender?.name || msg.sender || 'User'}
+                    {msg.isInstructor && ' 👨‍🏫'}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    {msg.timestamp || (msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '')}
+                  </span>
+                </div>
+                <div
+                  className={`px-4 py-2 rounded-lg max-w-xs break-words ${
+                    msg.isOwn
+                      ? 'bg-blue-500 text-white rounded-br-none'
+                      : 'bg-gray-100 text-gray-900 rounded-bl-none'
+                  }`}
+                >
+                  {msg.message || msg.content}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -131,11 +162,11 @@ const SessionChat = () => {
 
           <button
             onClick={handleSendMessage}
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() || sending}
             className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2 rounded-lg transition"
             title="Send"
           >
-            <FaPaperPlane />
+            {sending ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
           </button>
         </div>
       </div>

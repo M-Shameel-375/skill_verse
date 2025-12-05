@@ -147,6 +147,17 @@ export const getMyExchanges = () => {
 };
 
 // ============================================
+// GET PENDING REQUESTS
+// ============================================
+/**
+ * Get all pending exchange requests
+ * @returns {Promise}
+ */
+export const getPendingRequests = () => {
+  return axios.get(EXCHANGE_ENDPOINTS.GET_RECEIVED, { params: { status: 'pending' } });
+};
+
+// ============================================
 // GET RECEIVED REQUESTS
 // ============================================
 /**
@@ -293,6 +304,7 @@ const skillExchangeApi = {
   completeExchange,
   cancelExchange,
   getMyExchanges,
+  getPendingRequests,
   getReceivedRequests,
   getSentRequests,
   findMatches,

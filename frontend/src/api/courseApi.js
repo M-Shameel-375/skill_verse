@@ -39,6 +39,15 @@ export const getCourses = (params = {}) => {
   return axios.get(COURSE_ENDPOINTS.GET_COURSES, { params });
 };
 
+/**
+ * Alias for getCourses - Get all courses
+ * @param {Object} params - { page, limit, category, level, price, rating, search }
+ * @returns {Promise}
+ */
+export const getAllCourses = (params = {}) => {
+  return axios.get(COURSE_ENDPOINTS.GET_COURSES, { params });
+};
+
 // ============================================
 // GET COURSE BY ID
 // ============================================
@@ -342,6 +351,7 @@ export const addLecture = (courseId, sectionId, lectureData) => {
 // ============================================
 const courseApi = {
   getCourses,
+  getAllCourses,
   getCourseById,
   createCourse,
   updateCourse,

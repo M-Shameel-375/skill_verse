@@ -1,53 +1,137 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaArrowLeft, FaUser, FaStar, FaClock, FaMapPin, FaPhone, FaMessageCircle } from 'react-icons/fa';
+import { FaArrowLeft, FaUser, FaStar, FaClock, FaMapPin, FaPhone, FaMessageCircle, FaSpinner } from 'react-icons/fa';
 import { Button } from '../../../../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/Card';
 import MatchList from './MatchList';
 import toast from 'react-hot-toast';
+import { getExchangeById, acceptExchangeRequest } from '@/api/skillExchangeApi';
 
 const ExchangeDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [isInterested, setIsInterested] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [exchange, setExchange] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  // Mock data
-  const exchange = {
-    _id: id,
-    title: 'Learn React in exchange for Python tutoring',
-    description:
-      'I am an experienced React developer with 5+ years of experience. I can teach you React fundamentals, hooks, state management, and build real-world projects. In return, I am looking for someone to help me master Python for data science and machine learning.',
-    offering: 'React',
-    seeking: 'Python',
-    duration: '2-3',
-    availability: 'weekends',
-    user: {
-      _id: 'user123',
-      name: 'John Developer',
-      avatar: '',
-      bio: 'Full-stack developer passionate about teaching',
-      rating: 4.8,
-      reviews: 24,
-      level: 'Expert',
-    },
-    details: {
-      offeringDetails: 'React ES6+, Hooks, Redux, Next.js, real-world projects',
-      seekingDetails: 'Python fundamentals, data structures, libraries like NumPy and Pandas',
-      location: 'Online (Video Call)',
-      timezone: 'UTC-5',
-      maxStudents: 1,
-    },
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-  };
+  // Fetch exchange data from API
+  const fetchExchange = useCallback(async () => {
+    if (!id) {
+      setError('Exchange ID is missing');
+      setLoading(false);
+      return;
+    }
 
-  const handleInterest = () => {
-    setIsInterested(!isInterested);
-    toast.success(isInterested ? 'Interest removed' : 'Interest registered!');
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getExchangeById(id);
+      
+      if (response.data?.data) {
+        const data = response.data.data;
+        // Map API response to component format
+        setExchange({
+          _id: data._id,
+          title: data.title || `${data.offeredSkill?.name || 'Skill'} for ${data.requestedSkill?.name || 'Skill'}`,
+          description: data.description || '',
+          offering: data.offeredSkill?.name || 'Not specified',
+          seeking: data.requestedSkill?.name || 'Not specified',
+          duration: data.estimatedDuration ? `${Math.floor(data.estimatedDuration / 60)}-${Math.ceil(data.estimatedDuration / 60) + 1}` : '1-2',
+          availability: data.proposedSchedule?.[0]?.date ? 'scheduled' : 'flexible',
+          status: data.status,
+          user: {
+            _id: data.requester?._id || data.provider?._id,
+            name: data.requester?.name || data.provider?.name || 'Unknown User',
+            avatar: data.requester?.profileImage?.url || data.provider?.profileImage?.url || '',
+            bio: data.requester?.bio || data.provider?.bio || '',
+            rating: data.requester?.rating || data.provider?.rating || 4.5,
+            reviews: data.requester?.reviewCount || data.provider?.reviewCount || 0,
+            level: data.offeredSkill?.level || 'Intermediate',
+          },
+          details: {
+            offeringDetails: data.offeredSkill?.description || data.objectives?.join(', ') || 'No details provided',
+            seekingDetails: data.requestedSkill?.description || 'No details provided',
+            location: data.preferredPlatform || 'Online (Video Call)',
+            timezone: data.proposedSchedule?.[0]?.timezone || 'Flexible',
+            maxStudents: 1,
+          },
+          createdAt: data.createdAt,
+          meetingLink: data.meetingLink,
+        });
+      } else {
+        setError('Exchange not found');
+      }
+    } catch (err) {
+      console.error('Error fetching exchange:', err);
+      if (err.response?.status === 404) {
+        setError('Exchange not found');
+      } else {
+        setError(err.response?.data?.message || 'Failed to load exchange details');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchExchange();
+  }, [fetchExchange]);
+
+  const handleInterest = async () => {
+    try {
+      setActionLoading(true);
+      if (!isInterested) {
+        await acceptExchangeRequest(id);
+        toast.success('Interest registered! The user will be notified.');
+      }
+      setIsInterested(!isInterested);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to register interest');
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleMessage = () => {
-    navigate(`/messages/${exchange.user._id}`);
+    if (exchange?.user?._id) {
+      navigate(`/messages/${exchange.user._id}`);
+    } else {
+      toast.error('Cannot start message - user not found');
+    }
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <FaSpinner className="animate-spin text-4xl text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Loading exchange details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !exchange) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 text-lg mb-4">{error || 'Exchange not found'}</p>
+          <div className="flex gap-3 justify-center">
+            <Button variant="outline" onClick={() => navigate(-1)}>
+              Go Back
+            </Button>
+            <Button variant="primary" onClick={fetchExchange}>
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

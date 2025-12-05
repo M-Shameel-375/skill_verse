@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getUserProfile,
+  getCurrentUser,
   updateProfile,
   uploadProfileImage,
   uploadCoverImage,
@@ -28,6 +29,7 @@ const {
   exportUserData,
   updateUserRole,
   syncUser,
+  applyAsEducator,
 } = require('../controllers/user.controller');
 const { protect } = require('../middlewares/auth.middleware');
 const { uploadSingleImage } = require('../middlewares/upload.middleware');
@@ -45,6 +47,7 @@ router.get('/:id/stats', getUserStats);
 // Protected routes
 router.use(protect);
 
+router.get('/me', getCurrentUser);
 router.get('/me/courses', getMyCourses);
 router.get('/me/certificates', getMyCertificates);
 router.get('/me/badges', getMyBadges);
@@ -61,5 +64,6 @@ router.delete('/skills/:skillId', removeSkill);
 router.post('/:userId/skills/:skillId/endorse', endorseSkill);
 router.put('/notification-preferences', updateNotificationPreferences);
 router.post('/update-streak', updateLearningStreak);
+router.post('/apply-educator', applyAsEducator);
 
 module.exports = router;

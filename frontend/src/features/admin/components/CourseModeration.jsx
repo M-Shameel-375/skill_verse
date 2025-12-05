@@ -1,33 +1,98 @@
-import React, { useState } from 'react';
-import { FaCheck, FaTimes, FaClock, FaEye, FaFlag, FaStar } from 'react-icons/fa';
+import React, { useState, useEffect, useCallback } from 'react';
+import { FaCheck, FaTimes, FaClock, FaEye, FaFlag, FaStar, FaSpinner } from 'react-icons/fa';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import toast from 'react-hot-toast';
+import { getAllCourses, approveCourse, rejectCourse } from '@/api/adminApi';
+import { format } from 'date-fns';
 
 const CourseModeration = () => {
-  const [courses, setCourses] = useState([
-    { id: 1, title: 'React Fundamentals', instructor: 'Sarah Smith', status: 'pending', submittedDate: '2024-02-10', price: 49, rating: 4.8, reviews: 120, content: 'Video lectures, assignments, quizzes' },
-    { id: 2, title: 'Python for Beginners', instructor: 'John Doe', status: 'pending', submittedDate: '2024-02-08', price: 39, rating: null, reviews: 0, content: 'Interactive tutorials and exercises' },
-    { id: 3, title: 'Web Design Masterclass', instructor: 'Emma Wilson', status: 'approved', submittedDate: '2024-01-20', price: 59, rating: 4.9, reviews: 85, content: 'Design principles, tools, projects' },
-    { id: 4, title: 'Node.js Advanced', instructor: 'Alex Brown', status: 'flagged', submittedDate: '2024-02-05', price: 79, rating: 4.6, reviews: 45, content: 'Advanced backend development' },
-    { id: 5, title: 'JavaScript ES6+', instructor: 'Mike Johnson', status: 'rejected', submittedDate: '2024-01-30', price: 44, rating: null, reviews: 0, content: 'Modern JavaScript features' },
-  ]);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(null);
   const [filterStatus, setFilterStatus] = useState('pending');
   const [selectedCourse, setSelectedCourse] = useState(null);
+  const [stats, setStats] = useState({
+    pending: 0,
+    approved: 0,
+    flagged: 0,
+    rejected: 0,
+  });
+
+  // Fetch courses from API
+  const fetchCourses = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await getAllCourses({ status: filterStatus !== 'all' ? filterStatus : undefined });
+      const data = response.data || response;
+      
+      const courseList = data.courses || [];
+      setCourses(courseList.map(course => ({
+        id: course._id,
+        title: course.title,
+        instructor: course.instructor?.name || 'Unknown',
+        status: course.status || 'pending',
+        submittedDate: course.createdAt ? format(new Date(course.createdAt), 'yyyy-MM-dd') : 'N/A',
+        price: course.price || 0,
+        rating: course.rating?.average || null,
+        reviews: course.rating?.count || 0,
+        content: course.description?.substring(0, 100) + '...' || 'No description',
+      })));
+
+      // Fetch stats for all statuses
+      const allCoursesRes = await getAllCourses({});
+      const allCourses = allCoursesRes.data?.courses || [];
+      setStats({
+        pending: allCourses.filter(c => c.status === 'pending').length,
+        approved: allCourses.filter(c => c.status === 'approved' || c.status === 'published').length,
+        flagged: allCourses.filter(c => c.status === 'flagged').length,
+        rejected: allCourses.filter(c => c.status === 'rejected').length,
+      });
+    } catch (error) {
+      console.error('Failed to fetch courses:', error);
+      toast.error('Failed to load courses');
+    } finally {
+      setLoading(false);
+    }
+  }, [filterStatus]);
+
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
 
   const filteredCourses = courses.filter((course) => {
     if (filterStatus === 'all') return true;
     return course.status === filterStatus;
   });
 
-  const handleApproveCourse = (id) => {
-    setCourses(courses.map((c) => (c.id === id ? { ...c, status: 'approved' } : c)));
-    toast.success('Course approved!');
+  const handleApproveCourse = async (id) => {
+    try {
+      setActionLoading(id);
+      await approveCourse(id);
+      setCourses(courses.map((c) => (c.id === id ? { ...c, status: 'approved' } : c)));
+      toast.success('Course approved!');
+      fetchCourses();
+    } catch (error) {
+      console.error('Failed to approve course:', error);
+      toast.error('Failed to approve course');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleRejectCourse = (id, reason = 'Quality concerns') => {
-    setCourses(courses.map((c) => (c.id === id ? { ...c, status: 'rejected' } : c)));
-    toast.error('Course rejected');
+  const handleRejectCourse = async (id, reason = 'Quality concerns') => {
+    try {
+      setActionLoading(id);
+      await rejectCourse(id, reason);
+      setCourses(courses.map((c) => (c.id === id ? { ...c, status: 'rejected' } : c)));
+      toast.error('Course rejected');
+      fetchCourses();
+    } catch (error) {
+      console.error('Failed to reject course:', error);
+      toast.error('Failed to reject course');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleFlagCourse = (id) => {
@@ -38,6 +103,7 @@ const CourseModeration = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'approved':
+      case 'published':
         return 'bg-green-100 text-green-700';
       case 'rejected':
         return 'bg-red-100 text-red-700';
@@ -47,6 +113,14 @@ const CourseModeration = () => {
         return 'bg-blue-100 text-blue-700';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8 flex items-center justify-center">
+        <FaSpinner className="animate-spin text-4xl text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -67,7 +141,9 @@ const CourseModeration = () => {
                 }`}
               >
                 {status.charAt(0).toUpperCase() + status.slice(1)} (
-                {status === 'all' ? courses.length : courses.filter((c) => c.status === status).length})
+                {status === 'all' 
+                  ? Object.values(stats).reduce((a, b) => a + b, 0)
+                  : stats[status] || 0})
               </button>
             ))}
           </div>
@@ -78,25 +154,25 @@ const CourseModeration = () => {
           <Card>
             <div className="p-6 text-center">
               <p className="text-gray-600 text-sm">Pending Review</p>
-              <p className="text-3xl font-bold text-blue-600">{courses.filter((c) => c.status === 'pending').length}</p>
+              <p className="text-3xl font-bold text-blue-600">{stats.pending}</p>
             </div>
           </Card>
           <Card>
             <div className="p-6 text-center">
               <p className="text-gray-600 text-sm">Approved</p>
-              <p className="text-3xl font-bold text-green-600">{courses.filter((c) => c.status === 'approved').length}</p>
+              <p className="text-3xl font-bold text-green-600">{stats.approved}</p>
             </div>
           </Card>
           <Card>
             <div className="p-6 text-center">
               <p className="text-gray-600 text-sm">Flagged</p>
-              <p className="text-3xl font-bold text-yellow-600">{courses.filter((c) => c.status === 'flagged').length}</p>
+              <p className="text-3xl font-bold text-yellow-600">{stats.flagged}</p>
             </div>
           </Card>
           <Card>
             <div className="p-6 text-center">
               <p className="text-gray-600 text-sm">Rejected</p>
-              <p className="text-3xl font-bold text-red-600">{courses.filter((c) => c.status === 'rejected').length}</p>
+              <p className="text-3xl font-bold text-red-600">{stats.rejected}</p>
             </div>
           </Card>
         </div>

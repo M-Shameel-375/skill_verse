@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { FaClock, FaChevronRight } from 'react-icons/fa';
+import { FaClock, FaChevronRight, FaSpinner } from 'react-icons/fa';
 import Button from '../common/Button';
 import Card from '../common/Card';
 import toast from 'react-hot-toast';
+import { submitQuiz } from '../../../api/quizApi';
 
 const QuizTaker = ({ quiz, onComplete }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(quiz?.timeLimit * 60 || 1800);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -42,13 +44,48 @@ const QuizTaker = ({ quiz, onComplete }) => {
     }
   };
 
-  const handleSubmit = () => {
-    setSubmitted(true);
-    const score = calculateScore();
-    if (onComplete) {
-      onComplete({ answers, score, timeUsed: quiz.timeLimit * 60 - timeLeft });
+  const handleSubmit = async () => {
+    if (submitting || submitted) return;
+    
+    try {
+      setSubmitting(true);
+      const timeUsed = quiz.timeLimit * 60 - timeLeft;
+      
+      // Format answers for API
+      const formattedAnswers = Object.entries(answers).map(([questionId, answer]) => ({
+        questionId,
+        answer,
+      }));
+      
+      const response = await submitQuiz(quiz._id, {
+        answers: formattedAnswers,
+        timeSpent: timeUsed,
+      });
+      
+      const result = response.data?.data || response.data;
+      setSubmitted(true);
+      
+      if (onComplete) {
+        onComplete({
+          answers,
+          score: result.score || calculateScore(),
+          correctCount: result.correctCount || 0,
+          timeUsed,
+          ...result,
+        });
+      }
+      toast.success(`Quiz submitted! Score: ${result.score || calculateScore()}%`);
+    } catch (error) {
+      // Fallback to local calculation if API fails
+      const score = calculateScore();
+      setSubmitted(true);
+      if (onComplete) {
+        onComplete({ answers, score, timeUsed: quiz.timeLimit * 60 - timeLeft });
+      }
+      toast.success(`Quiz submitted! Score: ${score}%`);
+    } finally {
+      setSubmitting(false);
     }
-    toast.success(`Quiz submitted! Score: ${score}%`);
   };
 
   const calculateScore = () => {
@@ -124,8 +161,8 @@ const QuizTaker = ({ quiz, onComplete }) => {
               Previous
             </Button>
             {currentQuestion === quiz.questions.length - 1 ? (
-              <Button variant="primary" onClick={handleSubmit}>
-                Submit Quiz
+              <Button variant="primary" onClick={handleSubmit} disabled={submitting}>
+                {submitting ? <><FaSpinner className="animate-spin mr-2" /> Submitting...</> : 'Submit Quiz'}
               </Button>
             ) : (
               <Button variant="primary" onClick={handleNext}>

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { FaCalendar, FaClock, FaUsers, FaSearch, FaFilter, FaVideo, FaChevronRight } from 'react-icons/fa';
 import {
   getUpcomingSessions,
+  joinLiveSession,
   selectUpcomingSessions,
   selectSessionLoading,
 } from '../../../redux/slices/sessionSlice';
@@ -201,8 +202,13 @@ const LiveSessions = () => {
                 <SessionCard
                   key={session._id}
                   session={session}
-                  onRegister={() => {
-                    // TODO: Call API to register
+                  onRegister={async () => {
+                    try {
+                      await dispatch(joinLiveSession(session._id)).unwrap();
+                      toast.success('Successfully registered for session!');
+                    } catch (error) {
+                      toast.error(error || 'Failed to register for session');
+                    }
                   }}
                 />
               ))}

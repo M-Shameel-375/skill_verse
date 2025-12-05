@@ -1,37 +1,55 @@
-import React, { useEffect, useState } from 'react';
-import { FaDownload, FaEye } from 'react-icons/fa';
+import React, { useEffect, useState, useCallback } from 'react';
+import { FaDownload, FaEye, FaSpinner } from 'react-icons/fa';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import toast from 'react-hot-toast';
+import { getPaymentHistory, downloadInvoice } from '../../../api/paymentApi';
 
 const PaymentHistory = () => {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    setPayments([
-      {
-        id: 'tx_123456',
-        courseName: 'Complete React Masterclass',
-        amount: 99.99,
-        date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'completed',
-        invoiceUrl: '#',
-      },
-      {
-        id: 'tx_234567',
-        courseName: 'Node.js Backend Development',
-        amount: 79.99,
-        date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-        status: 'completed',
-        invoiceUrl: '#',
-      },
-    ]);
-    setLoading(false);
+  const fetchPayments = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getPaymentHistory();
+      const data = response.data?.data || response.data;
+      const paymentList = Array.isArray(data) ? data : data.payments || [];
+      setPayments(paymentList.map(p => ({
+        id: p._id || p.id,
+        courseName: p.course?.title || p.courseName || 'Course',
+        amount: p.amount || 0,
+        date: p.createdAt || p.date,
+        status: p.status || 'completed',
+        invoiceUrl: p.invoiceUrl,
+      })));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch payment history');
+      console.error('Error fetching payments:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleDownloadInvoice = (payment) => {
-    toast.success('Invoice downloaded');
+  useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
+
+  const handleDownloadInvoice = async (payment) => {
+    try {
+      if (payment.invoiceUrl && payment.invoiceUrl !== '#') {
+        window.open(payment.invoiceUrl, '_blank');
+      } else {
+        const response = await downloadInvoice(payment.id);
+        const url = response.data?.url || response.data;
+        if (url) window.open(url, '_blank');
+      }
+      toast.success('Invoice downloaded');
+    } catch (err) {
+      toast.error('Failed to download invoice');
+    }
   };
 
   const getStatusBadge = (status) => {

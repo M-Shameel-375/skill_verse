@@ -63,6 +63,27 @@ const userSchema = new mongoose.Schema(
     },
 
     // ============================================
+    // MODERATION
+    // ============================================
+    warnings: [
+      {
+        reason: String,
+        contentId: mongoose.Schema.Types.ObjectId,
+        issuedAt: Date,
+        issuedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+      },
+    ],
+    banReason: String,
+    bannedAt: Date,
+    bannedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+
+    // ============================================
     // PROFILE INFORMATION
     // ============================================
     profileImage: {
@@ -173,6 +194,26 @@ const userSchema = new mongoose.Schema(
         type: Boolean,
         default: false,
       },
+    },
+
+    // ============================================
+    // EDUCATOR APPLICATION (for learners applying to become educators)
+    // ============================================
+    educatorApplication: {
+      expertise: [String],
+      experience: Number,
+      bio: String,
+      qualifications: [String],
+      portfolio: String,
+      linkedIn: String,
+      motivation: String,
+      status: {
+        type: String,
+        enum: ['pending', 'approved', 'rejected'],
+      },
+      appliedAt: Date,
+      reviewedAt: Date,
+      rejectionReason: String,
     },
 
     // ============================================

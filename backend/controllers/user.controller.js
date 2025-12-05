@@ -30,6 +30,24 @@ exports.getUserProfile = asyncHandler(async (req, res) => {
 });
 
 // ============================================
+// @desc    Get current user profile
+// @route   GET /api/v1/users/me
+// @access  Private
+// ============================================
+exports.getCurrentUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id)
+    .select('-password -refreshToken -emailVerificationToken -passwordResetToken')
+    .populate('learnerProfile.enrolledCourses', 'title thumbnail rating')
+    .populate('gamification.badges', 'name icon description');
+
+  if (!user) {
+    throw ApiError.notFound('User not found');
+  }
+
+  ApiResponse.success(res, user, 'Current user profile retrieved successfully');
+});
+
+// ============================================
 // @desc    Update user profile
 // @route   PUT /api/v1/users/profile
 // @access  Private
@@ -738,4 +756,56 @@ exports.updateUserRole = asyncHandler(async (req, res) => {
     email: user.email,
     role: user.role,
   }, `User role updated to ${role} successfully`);
+});
+
+// ============================================
+// @desc    Apply as educator
+// @route   POST /api/v1/users/apply-educator
+// @access  Private
+// ============================================
+exports.applyAsEducator = asyncHandler(async (req, res) => {
+  const {
+    expertise,
+    experience,
+    bio,
+    qualifications,
+    portfolio,
+    linkedIn,
+    motivation,
+  } = req.body;
+
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    throw ApiError.notFound('User not found');
+  }
+
+  if (user.role === 'educator') {
+    throw ApiError.badRequest('You are already an educator');
+  }
+
+  if (user.educatorApplication?.status === 'pending') {
+    throw ApiError.badRequest('You already have a pending application');
+  }
+
+  // Create educator application
+  user.educatorApplication = {
+    expertise: expertise || [],
+    experience: experience || 0,
+    bio: bio || '',
+    qualifications: qualifications || [],
+    portfolio: portfolio || '',
+    linkedIn: linkedIn || '',
+    motivation: motivation || '',
+    status: 'pending',
+    appliedAt: new Date(),
+  };
+
+  await user.save();
+
+  ApiResponse.success(
+    res,
+    { application: user.educatorApplication },
+    'Educator application submitted successfully. We will review your application and get back to you soon.'
+  );
 });

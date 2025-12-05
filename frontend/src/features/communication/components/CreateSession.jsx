@@ -6,6 +6,7 @@ import { FaSave, FaArrowLeft } from 'react-icons/fa';
 import Button from '../common/Button';
 import Card from '../common/Card';
 import toast from 'react-hot-toast';
+import { createLiveSession } from '../../../api/liveSessionApi';
 
 const validationSchema = Yup.object().shape({
   title: Yup.string().required('Title is required').min(10, 'Min 10 characters'),
@@ -36,11 +37,18 @@ const CreateSession = () => {
 
   const handleSubmit = async (values, { setSubmitting }) => {
     try {
-      console.log('Creating session:', values);
+      // Transform comma-separated strings to arrays
+      const sessionData = {
+        ...values,
+        topics: values.topics ? values.topics.split(',').map(t => t.trim()).filter(Boolean) : [],
+        prerequisites: values.prerequisites ? values.prerequisites.split(',').map(p => p.trim()).filter(Boolean) : [],
+      };
+      
+      await createLiveSession(sessionData);
       toast.success('Session created successfully!');
       navigate('/live-sessions');
     } catch (error) {
-      toast.error('Failed to create session');
+      toast.error(error.response?.data?.message || 'Failed to create session');
     } finally {
       setSubmitting(false);
     }

@@ -1,102 +1,130 @@
-import React, { useState } from 'react';
-import { FaCheck, FaTimes, FaFlag, FaEye, FaTrash, FaChartBar, FaCalendarAlt } from 'react-icons/fa';
+import React, { useState, useEffect, useCallback } from 'react';
+import { FaCheck, FaTimes, FaFlag, FaEye, FaTrash, FaChartBar, FaCalendarAlt, FaSpinner } from 'react-icons/fa';
 import Card from '../common/Card';
 import Button from '../common/Button';
 import toast from 'react-hot-toast';
+import { getModerationQueue, approveContent, removeContent, warnUser, banUser } from '@/api/adminApi';
+import { format } from 'date-fns';
 
 const ContentModeration = () => {
-  const [flaggedContent, setFlaggedContent] = useState([
-    {
-      id: 1,
-      type: 'Comment',
-      content: 'Inappropriate language in course review',
-      author: 'John Smith',
-      flaggedBy: 'Alice Johnson',
-      reason: 'Inappropriate Language',
-      flags: 3,
-      flaggedDate: '2024-02-10',
-      status: 'pending',
-    },
-    {
-      id: 2,
-      type: 'User Profile',
-      content: 'Offensive profile bio and avatar',
-      author: 'Mike Chen',
-      flaggedBy: 'Sarah Lee',
-      reason: 'Offensive Content',
-      flags: 5,
-      flaggedDate: '2024-02-08',
-      status: 'pending',
-    },
-    {
-      id: 3,
-      type: 'Course Review',
-      content: 'Spam review promoting external site',
-      author: 'Bot User 123',
-      flaggedBy: 'System',
-      reason: 'Spam',
-      flags: 8,
-      flaggedDate: '2024-02-07',
-      status: 'pending',
-    },
-    {
-      id: 4,
-      type: 'Live Session Chat',
-      content: 'Harassment and bullying towards other user',
-      author: 'Anonymous User',
-      flaggedBy: 'Moderator',
-      reason: 'Harassment',
-      flags: 2,
-      flaggedDate: '2024-02-05',
-      status: 'resolved',
-    },
-    {
-      id: 5,
-      type: 'Course Content',
-      content: 'Copyrighted material without proper licensing',
-      author: 'Instructor 456',
-      flaggedBy: 'Copyright Team',
-      reason: 'Copyright Violation',
-      flags: 1,
-      flaggedDate: '2024-02-03',
-      status: 'resolved',
-    },
-  ]);
-
+  const [flaggedContent, setFlaggedContent] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(null);
   const [filterStatus, setFilterStatus] = useState('pending');
   const [selectedContent, setSelectedContent] = useState(null);
+  const [stats, setStats] = useState({
+    pending: 0,
+    resolved: 0,
+    totalFlags: 0,
+  });
+
+  // Fetch moderation queue from API
+  const fetchModerationQueue = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await getModerationQueue({ status: filterStatus !== 'all' ? filterStatus : undefined });
+      const data = response.data || response;
+      
+      const content = data.content || data.queue || [];
+      setFlaggedContent(content.map(item => ({
+        id: item._id,
+        type: item.contentType || item.type || 'Content',
+        content: item.content || item.description || 'Flagged content',
+        author: item.author?.name || item.authorName || 'Unknown',
+        flaggedBy: item.flaggedBy?.name || item.reporterName || 'System',
+        reason: item.reason || 'Violation',
+        flags: item.flagCount || item.flags || 1,
+        flaggedDate: item.createdAt ? format(new Date(item.createdAt), 'yyyy-MM-dd') : 'N/A',
+        status: item.status || 'pending',
+      })));
+
+      // Calculate stats
+      setStats({
+        pending: content.filter(c => c.status === 'pending').length,
+        resolved: content.filter(c => c.status === 'resolved').length,
+        totalFlags: content.reduce((acc, c) => acc + (c.flagCount || c.flags || 1), 0),
+      });
+    } catch (error) {
+      console.error('Failed to fetch moderation queue:', error);
+      // Use empty state on error
+      setFlaggedContent([]);
+      setStats({ pending: 0, resolved: 0, totalFlags: 0 });
+    } finally {
+      setLoading(false);
+    }
+  }, [filterStatus]);
+
+  useEffect(() => {
+    fetchModerationQueue();
+  }, [fetchModerationQueue]);
 
   const filteredContent = flaggedContent.filter((item) => {
     if (filterStatus === 'all') return true;
     return item.status === filterStatus;
   });
 
-  const stats = {
-    pending: flaggedContent.filter((c) => c.status === 'pending').length,
-    resolved: flaggedContent.filter((c) => c.status === 'resolved').length,
-    totalFlags: flaggedContent.reduce((acc, c) => acc + c.flags, 0),
-  };
-
-  const handleApproveContent = (id) => {
-    setFlaggedContent(flaggedContent.map((c) => (c.id === id ? { ...c, status: 'resolved' } : c)));
-    toast.success('Content approved and restored');
-  };
-
-  const handleRemoveContent = (id) => {
-    setFlaggedContent(flaggedContent.map((c) => (c.id === id ? { ...c, status: 'resolved' } : c)));
-    toast.error('Content removed');
-  };
-
-  const handleWarningUser = (id, author) => {
-    toast.success(`Warning sent to ${author}`);
-  };
-
-  const handleBanUser = (id, author) => {
-    if (window.confirm(`Ban ${author} from platform?`)) {
-      setFlaggedContent(flaggedContent.filter((c) => c.id !== id));
-      toast.error(`${author} has been banned`);
+  const handleApproveContent = async (id) => {
+    try {
+      setActionLoading(id);
+      await approveContent(id);
+      setFlaggedContent(flaggedContent.map((c) => (c.id === id ? { ...c, status: 'resolved' } : c)));
+      toast.success('Content approved and restored');
+      fetchModerationQueue();
+    } catch (error) {
+      console.error('Failed to approve content:', error);
+      toast.error('Failed to approve content');
+    } finally {
+      setActionLoading(null);
     }
   };
+
+  const handleRemoveContent = async (id) => {
+    try {
+      setActionLoading(id);
+      await removeContent(id);
+      setFlaggedContent(flaggedContent.map((c) => (c.id === id ? { ...c, status: 'resolved' } : c)));
+      toast.error('Content removed');
+      fetchModerationQueue();
+    } catch (error) {
+      console.error('Failed to remove content:', error);
+      toast.error('Failed to remove content');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleWarningUser = async (id, author) => {
+    try {
+      const item = flaggedContent.find(c => c.id === id);
+      await warnUser(item?.authorId || id, id, 'Content violation');
+      toast.success(`Warning sent to ${author}`);
+    } catch (error) {
+      console.error('Failed to warn user:', error);
+      toast.error('Failed to send warning');
+    }
+  };
+
+  const handleBanUser = async (id, author) => {
+    if (window.confirm(`Ban ${author} from platform?`)) {
+      try {
+        const item = flaggedContent.find(c => c.id === id);
+        await banUser(item?.authorId || id, 'Multiple content violations');
+        setFlaggedContent(flaggedContent.filter((c) => c.id !== id));
+        toast.error(`${author} has been banned`);
+      } catch (error) {
+        console.error('Failed to ban user:', error);
+        toast.error('Failed to ban user');
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8 flex items-center justify-center">
+        <FaSpinner className="animate-spin text-4xl text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
