@@ -24,7 +24,13 @@ const SmartDashboard = () => {
 
   useEffect(() => {
     const syncAndFetchUser = async () => {
-      if (!isLoaded || !user) {
+      if (!isLoaded) {
+        // Still loading Clerk
+        return;
+      }
+
+      if (!user) {
+        // Not logged in - don't set error, just stop loading
         setLoading(false);
         return;
       }
@@ -58,6 +64,7 @@ const SmartDashboard = () => {
         if (storedUser) {
           try {
             setDbUser(JSON.parse(storedUser));
+            setError(null); // Clear error if we have fallback data
           } catch (e) {
             // Ignore parse error
           }
@@ -71,6 +78,12 @@ const SmartDashboard = () => {
   }, [isLoaded, user]);
 
   if (loading) {
+    return <FullPageLoader />;
+  }
+
+  // If Clerk is loaded but no user, redirect to sign in
+  if (isLoaded && !user) {
+    navigate('/sign-in');
     return <FullPageLoader />;
   }
 
@@ -88,6 +101,11 @@ const SmartDashboard = () => {
         </div>
       </div>
     );
+  }
+
+  // Still waiting for user data
+  if (!dbUser) {
+    return <FullPageLoader />;
   }
 
   // Determine which dashboard to show based on user role
