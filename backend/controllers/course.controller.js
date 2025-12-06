@@ -35,19 +35,63 @@ exports.createCourse = asyncHandler(async (req, res) => {
     language,
   } = req.body;
 
+  // Map category to correct enum value (handle case-insensitivity)
+  const categoryMap = {
+    'programming': 'Programming',
+    'design': 'Design',
+    'business': 'Business',
+    'marketing': 'Marketing',
+    'photography': 'Photography',
+    'music': 'Music',
+    'health & fitness': 'Health & Fitness',
+    'health': 'Health & Fitness',
+    'language': 'Language',
+    'personal development': 'Personal Development',
+    'personal-development': 'Personal Development',
+    'science': 'Science',
+    'mathematics': 'Mathematics',
+    'art & craft': 'Art & Craft',
+    'art': 'Art & Craft',
+    'cooking': 'Cooking',
+    'other': 'Other',
+  };
+
+  const normalizedCategory = category ? 
+    (categoryMap[category.toLowerCase()] || category) : 
+    'Other';
+
+  // Map level to correct enum value
+  const levelMap = {
+    'beginner': 'beginner',
+    'intermediate': 'intermediate',
+    'advanced': 'advanced',
+    'all-levels': 'all-levels',
+    'all levels': 'all-levels',
+  };
+
+  const normalizedLevel = level ? 
+    (levelMap[level.toLowerCase()] || 'beginner') : 
+    'beginner';
+
+  // Default placeholder thumbnail if not provided
+  const defaultThumbnail = {
+    url: 'https://placehold.co/800x450/3b82f6/ffffff?text=Course+Thumbnail',
+    publicId: 'placeholder',
+  };
+
   // Create course
   const course = await Course.create({
     title,
     description,
     shortDescription,
-    category,
+    category: normalizedCategory,
     subcategory,
     tags,
-    level,
+    level: normalizedLevel,
     prerequisites,
     targetAudience,
-    price,
-    originalPrice: originalPrice || price,
+    price: price || 0,
+    originalPrice: originalPrice || price || 0,
     currency,
     learningOutcomes,
     requirements,
@@ -58,7 +102,7 @@ exports.createCourse = asyncHandler(async (req, res) => {
           url: req.files.thumbnail[0].path,
           publicId: req.files.thumbnail[0].filename,
         }
-      : undefined,
+      : defaultThumbnail,
   });
 
   // Update educator's course count

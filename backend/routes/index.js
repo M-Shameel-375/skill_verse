@@ -5,6 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 
 // Import all route modules
 const userRoutes = require('./user.routes');
@@ -22,6 +23,43 @@ const analyticsRoutes = require('./analytics.routes');
 const chatRoutes = require('./chat.routes');
 const aiRoutes = require('./ai.routes');
 const disputeRoutes = require('./dispute.routes');
+
+// Health check endpoint for production monitoring
+router.get('/health', (req, res) => {
+  const healthCheck = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    version: process.env.npm_package_version || '1.0.0'
+  };
+
+  // Check database connection
+  if (mongoose.connection.readyState !== 1) {
+    healthCheck.status = 'unhealthy';
+    return res.status(503).json(healthCheck);
+  }
+
+  res.status(200).json(healthCheck);
+});
+
+// Readiness probe for Kubernetes/container orchestration
+router.get('/ready', async (req, res) => {
+  try {
+    // Check database
+    if (mongoose.connection.readyState !== 1) {
+      throw new Error('Database not connected');
+    }
+    
+    // Ping database
+    await mongoose.connection.db.admin().ping();
+    
+    res.status(200).json({ status: 'ready' });
+  } catch (error) {
+    res.status(503).json({ status: 'not ready', error: error.message });
+  }
+});
 
 // Mount routes
 router.use('/users', userRoutes);

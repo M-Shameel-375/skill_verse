@@ -1,0 +1,45 @@
+version: '3.8'
+
+# Development environment with hot-reloading
+services:
+  # Backend API with nodemon
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: skillverse-api-dev
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - ./backend/.env
+    networks:
+      - skillverse-dev-network
+
+  # Frontend with Vite HMR
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: skillverse-web-dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - ./frontend/.env
+    depends_on:
+      - backend
+    networks:
+      - skillverse-dev-network
+
+networks:
+  skillverse-dev-network:
+    driver: bridge

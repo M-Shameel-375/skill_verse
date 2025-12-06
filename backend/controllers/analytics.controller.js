@@ -392,6 +392,3 @@ exports.agoraConfig = {
 };
 
 module.exports = exports;
-
-OPENAI_API_KEY=your_openai_api_key
-AI_MODEL=gpt-3.5-turbo
