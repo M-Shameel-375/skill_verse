@@ -197,6 +197,58 @@ export const updateSystemSettings = async (settings) => {
   return response;
 };
 
+// ============================================
+// PAYMENTS MANAGEMENT
+// ============================================
+
+/**
+ * Get all payments
+ */
+export const getAllPayments = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  const response = await axios.get(`/admin/payments?${queryString}`);
+  return response;
+};
+
+/**
+ * Process refund
+ */
+export const processRefund = async (paymentId) => {
+  const response = await axios.post(`/admin/payments/${paymentId}/refund`);
+  return response;
+};
+
+/**
+ * Update payment status
+ */
+export const updatePaymentStatus = async (paymentId, status) => {
+  const response = await axios.put(`/admin/payments/${paymentId}/status`, { status });
+  return response;
+};
+
+// ============================================
+// REPORTS MANAGEMENT
+// ============================================
+
+/**
+ * Get reports
+ */
+export const getReports = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  const response = await axios.get(`/admin/reports?${queryString}`);
+  return response;
+};
+
+/**
+ * Download report
+ */
+export const downloadReport = async (reportId) => {
+  const response = await axios.get(`/admin/reports/${reportId}/download`, {
+    responseType: 'blob',
+  });
+  return response;
+};
+
 export default {
   getDashboardStats,
   getSystemHealth,
@@ -219,4 +271,9 @@ export default {
   getLearnerAnalytics,
   getSystemSettings,
   updateSystemSettings,
+  getAllPayments,
+  processRefund,
+  updatePaymentStatus,
+  getReports,
+  downloadReport,
 };

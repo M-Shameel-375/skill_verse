@@ -6,18 +6,22 @@
 const rateLimit = require('express-rate-limit');
 const config = require('../config/config');
 
+// Skip rate limiting in development mode
+const skipInDevelopment = () => process.env.NODE_ENV === 'development';
+
 // ============================================
 // GENERAL API RATE LIMITER
 // ============================================
 const generalLimiter = rateLimit({
   windowMs: config.security.rateLimitWindowMs, // 15 minutes
-  max: config.security.rateLimitMaxRequests, // 100 requests per window
+  max: process.env.NODE_ENV === 'development' ? 1000 : config.security.rateLimitMaxRequests, // 1000 in dev, 100 in prod
   message: {
     success: false,
     message: 'Too many requests from this IP, please try again later',
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipInDevelopment, // Skip rate limiting in development
 });
 
 // ============================================
@@ -25,7 +29,7 @@ const generalLimiter = rateLimit({
 // ============================================
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 requests per window
+  max: process.env.NODE_ENV === 'development' ? 100 : 5, // 100 in dev, 5 in prod
   skipSuccessfulRequests: true,
   message: {
     success: false,
@@ -33,6 +37,7 @@ const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipInDevelopment, // Skip rate limiting in development
 });
 
 // ============================================
@@ -40,13 +45,14 @@ const authLimiter = rateLimit({
 // ============================================
 const passwordResetLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // 3 requests per hour
+  max: process.env.NODE_ENV === 'development' ? 50 : 3, // 50 in dev, 3 in prod
   message: {
     success: false,
     message: 'Too many password reset attempts, please try again after an hour',
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipInDevelopment, // Skip rate limiting in development
 });
 
 // ============================================

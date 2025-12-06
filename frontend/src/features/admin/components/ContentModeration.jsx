@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FaCheck, FaTimes, FaFlag, FaEye, FaTrash, FaChartBar, FaCalendarAlt, FaSpinner } from 'react-icons/fa';
-import Card from '../common/Card';
-import Button from '../common/Button';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import { getModerationQueue, approveContent, removeContent, warnUser, banUser } from '@/api/adminApi';
 import { format } from 'date-fns';
@@ -231,12 +231,11 @@ const ContentModeration = () => {
                     <div className="flex gap-2 md:flex-col w-full md:w-auto">
                       <Button
                         onClick={() => handleApproveContent(item.id)}
-                        variant="primary"
+                        variant="default"
                         size="sm"
-                        icon={<FaCheck />}
-                        className="flex-1 md:flex-none"
+                        className="flex-1 md:flex-none bg-green-600 hover:bg-green-700"
                       >
-                        Approve
+                        <FaCheck className="mr-1" /> Approve
                       </Button>
                       <Button
                         onClick={() => handleWarningUser(item.id, item.author)}
@@ -250,16 +249,15 @@ const ContentModeration = () => {
                         onClick={() => handleRemoveContent(item.id)}
                         variant="outline"
                         size="sm"
-                        icon={<FaTrash />}
                         className="flex-1 md:flex-none"
                       >
-                        Remove
+                        <FaTrash className="mr-1" /> Remove
                       </Button>
                       <Button
                         onClick={() => handleBanUser(item.id, item.author)}
-                        variant="outline"
+                        variant="destructive"
                         size="sm"
-                        className="flex-1 md:flex-none text-red-600 border-red-600 hover:bg-red-50"
+                        className="flex-1 md:flex-none"
                       >
                         Ban User
                       </Button>

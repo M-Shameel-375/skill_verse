@@ -1,53 +1,84 @@
 // ============================================
-// CHAT API ENDPOINTS
+// CHAT API
 // ============================================
 
 import axios from './axios';
 
-const CHAT_ENDPOINTS = {
-  GET_CONVERSATIONS: '/chats',
-  GET_CONVERSATION: '/chats',
-  CREATE_CONVERSATION: '/chats',
-  GET_MESSAGES: '/chats/messages',
-  SEND_MESSAGE: '/chats/messages',
-  MARK_AS_READ: '/chats/read',
-  DELETE_MESSAGE: '/chats/messages',
-  GET_EXCHANGE_CHAT: '/chats/exchange',
+/**
+ * Get all conversations
+ */
+export const getConversations = async () => {
+  return axios.get('/chat/conversations');
 };
 
-// ============================================
-// GET ALL CONVERSATIONS
-// ============================================
 /**
- * Get all user's conversations
- * @returns {Promise}
+ * Get or create conversation for an exchange
  */
-export const getConversations = () => {
-  return axios.get(CHAT_ENDPOINTS.GET_CONVERSATIONS);
+export const getExchangeChat = async (exchangeId) => {
+  return axios.get(`/chat/exchange/${exchangeId}`);
 };
 
-// ============================================
-// GET CONVERSATION BY ID
-// ============================================
 /**
- * Get conversation details
- * @param {string} conversationId - Conversation ID
- * @returns {Promise}
+ * Get conversation by ID
  */
-export const getConversationById = (conversationId) => {
-  return axios.get(`${CHAT_ENDPOINTS.GET_CONVERSATION}/${conversationId}`);
+export const getConversationById = async (conversationId) => {
+  return axios.get(`/chat/conversations/${conversationId}`);
 };
 
-// ============================================
-// CREATE OR GET DIRECT CONVERSATION
-// ============================================
 /**
- * Create or get direct conversation with a user
- * @param {string} userId - Target user ID
- * @returns {Promise}
+ * Get messages for a conversation
  */
-export const createOrGetConversation = (userId) => {
-  return axios.post(CHAT_ENDPOINTS.CREATE_CONVERSATION, { userId });
+export const getMessages = async (conversationId, params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  return axios.get(`/chat/conversations/${conversationId}/messages?${queryString}`);
+};
+
+/**
+ * Send a message
+ */
+export const sendMessage = async (conversationId, data) => {
+  return axios.post(`/chat/conversations/${conversationId}/messages`, data);
+};
+
+/**
+ * Mark messages as read
+ */
+export const markAsRead = async (conversationId) => {
+  return axios.post(`/chat/conversations/${conversationId}/read`);
+};
+
+/**
+ * Delete a message
+ */
+export const deleteMessage = async (conversationId, messageId) => {
+  return axios.delete(`/chat/conversations/${conversationId}/messages/${messageId}`);
+};
+
+/**
+ * Start a direct conversation with a user
+ */
+export const startConversation = async (userId) => {
+  return axios.post('/chat/conversations', { userId });
+};
+
+/**
+ * Get unread message count
+ */
+export const getUnreadCount = async () => {
+  return axios.get('/chat/unread-count');
+};
+
+export default {
+  getConversations,
+  getExchangeChat,
+  getConversationById,
+  getMessages,
+  sendMessage,
+  markAsRead,
+  deleteMessage,
+  startConversation,
+  getUnreadCount,
+};
 };
 
 // ============================================

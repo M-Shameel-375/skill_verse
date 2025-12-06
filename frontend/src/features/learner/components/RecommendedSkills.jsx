@@ -8,7 +8,7 @@ import { FaLightbulb, FaArrowRight, FaSpinner, FaStar, FaUsers } from 'react-ico
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { getCourses } from '@/api/courseApi';
-import { getAvailableMatches } from '@/api/skillExchangeApi';
+import { findMatches } from '@/api/skillExchangeApi';
 
 const RecommendedSkills = ({ userSkills = [], userInterests = [] }) => {
   const navigate = useNavigate();
@@ -24,7 +24,7 @@ const RecommendedSkills = ({ userSkills = [], userInterests = [] }) => {
       // Fetch courses and skill exchange matches
       const [coursesRes, matchesRes] = await Promise.all([
         getCourses({ limit: 6, sort: '-rating' }).catch(() => ({ data: { courses: [] } })),
-        getAvailableMatches({ limit: 4 }).catch(() => ({ data: { matches: [] } })),
+        findMatches({ limit: 4 }).catch(() => ({ data: { matches: [] } })),
       ]);
 
       const courses = coursesRes.data?.courses || [];

@@ -6,20 +6,23 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
+    // Get MongoDB URI - always use the main MONGODB_URI which points to skillverse database
+    const mongoURI = process.env.MONGODB_URI;
+    
+    if (!mongoURI) {
+      throw new Error('MONGODB_URI is not defined in environment variables');
+    }
+
     // Connection options
     const options = {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
-      tls: true,
-      tlsAllowInvalidCertificates: false,
-      tlsAllowInvalidHostnames: false,
+      // dbName explicitly set to skillverse to ensure correct database
+      dbName: 'skillverse',
     };
-
-    // Connect to MongoDB
-    const conn = await mongoose.connect(process.env.MONGODB_URI, options);
+    
+    const conn = await mongoose.connect(mongoURI, options);
 
     console.log('='.repeat(50));
     console.log(`✅ MongoDB Connected Successfully`);

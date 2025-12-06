@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FaPaperPlane, FaPhone, FaVideo, FaEllipsisV, FaSmile, FaPaperclip, FaSpinner } from 'react-icons/fa';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../../components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { getExchangeChat, getMessages, sendMessage } from '@/api/chatApi';
 import { useUser } from '@clerk/clerk-react';
 import toast from 'react-hot-toast';
@@ -23,49 +23,44 @@ const ExchangeChat = ({ matchId = '1', partnerInfo = null }) => {
   const fetchChat = useCallback(async () => {
     setLoading(true);
     try {
-      // Get or create chat for this exchange
       const chatRes = await getExchangeChat(matchId);
-      const chatData = chatRes?.data;
-      
+      const chatData = chatRes?.data?.data || chatRes?.data;
+
       if (chatData) {
         setConversationId(chatData._id || chatData.conversationId);
-        
-        // Set partner info from chat data if available
+
         if (chatData.partner) {
           setPartner({
             name: chatData.partner.name || 'Partner',
-            avatar: chatData.partner.avatar?.url || `https://i.pravatar.cc/150?img=${matchId}`,
+            avatar: chatData.partner.avatar?.url || chatData.partner.profileImage?.url || `https://i.pravatar.cc/150?img=${matchId}`,
             skill: chatData.partner.offeredSkill || 'Skill Exchange',
           });
         }
 
-        // Get messages
         const messagesRes = await getMessages(chatData._id || matchId);
-        const messagesData = messagesRes?.data?.messages || messagesRes?.data || [];
-        
-        // Transform to component format
+        const messagesData = messagesRes?.data?.data?.messages || messagesRes?.data?.messages || messagesRes?.data || [];
+
         const transformedMessages = messagesData.map((msg, index) => ({
           id: msg._id || index,
           sender: msg.sender?.name || (msg.isOwn ? 'You' : partner.name),
-          avatar: msg.sender?.avatar?.url || (msg.isOwn ? user?.imageUrl : partner.avatar),
+          avatar: msg.sender?.avatar?.url || msg.sender?.profileImage?.url || (msg.isOwn ? user?.imageUrl : partner.avatar),
           message: msg.content || msg.message || msg.text,
-          timestamp: new Date(msg.createdAt || msg.timestamp).toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
+          timestamp: new Date(msg.createdAt || msg.timestamp).toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
           }),
           isOwn: msg.isOwn || msg.sender?._id === user?.id,
         }));
-        
+
         setMessages(transformedMessages);
       }
     } catch (error) {
       console.error('Failed to fetch chat:', error);
-      // If API fails, we'll work with empty state
       setMessages([]);
     } finally {
       setLoading(false);
     }
-  }, [matchId, user?.id, user?.imageUrl, partner]);
+  }, [matchId, user?.id, user?.imageUrl, partner.name, partner.avatar]);
 
   useEffect(() => {
     fetchChat();
@@ -86,7 +81,6 @@ const ExchangeChat = ({ matchId = '1', partnerInfo = null }) => {
     setNewMessage('');
     setSending(true);
 
-    // Optimistic update
     const tempMessage = {
       id: `temp-${Date.now()}`,
       sender: 'You',
@@ -104,20 +98,18 @@ const ExchangeChat = ({ matchId = '1', partnerInfo = null }) => {
     } catch (error) {
       console.error('Failed to send message:', error);
       toast.error('Failed to send message');
-      // Remove optimistic message on error
       setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
-      setNewMessage(messageContent); // Restore the message
+      setNewMessage(messageContent);
     } finally {
       setSending(false);
     }
   };
 
-  const handleStartCall = () => {
-    toast.success('Starting voice call...');
-  };
-
-  const handleStartVideo = () => {
-    toast.success('Starting video call...');
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
   };
 
   return (
@@ -129,7 +121,7 @@ const ExchangeChat = ({ matchId = '1', partnerInfo = null }) => {
             <img
               src={partner.avatar}
               alt={partner.name}
-              className="w-10 h-10 rounded-full"
+              className="w-10 h-10 rounded-full object-cover"
             />
             <div>
               <h2 className="font-bold text-gray-900">{partner.name}</h2>
@@ -138,14 +130,14 @@ const ExchangeChat = ({ matchId = '1', partnerInfo = null }) => {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={handleStartCall}
+              onClick={() => toast.success('Starting voice call...')}
               className="p-2 hover:bg-gray-100 rounded-lg transition text-blue-600"
               title="Voice call"
             >
               <FaPhone size={20} />
             </button>
             <button
-              onClick={handleStartVideo}
+              onClick={() => toast.success('Starting video call...')}
               className="p-2 hover:bg-gray-100 rounded-lg transition text-blue-600"
               title="Video call"
             >
@@ -171,27 +163,26 @@ const ExchangeChat = ({ matchId = '1', partnerInfo = null }) => {
           </div>
         ) : (
           messages.map((msg) => (
-          <div key={msg.id} className={`flex gap-3 ${msg.isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-            <img
-              src={msg.avatar}
-              alt={msg.sender}
-              className="w-8 h-8 rounded-full flex-shrink-0"
-            />
-            <div className={`flex flex-col gap-1 ${msg.isOwn ? 'items-end' : 'items-start'}`}>
-              <span className="text-xs text-gray-500">{msg.timestamp}</span>
-              <div
-                className={`px-4 py-2 rounded-lg max-w-xs break-words ${
-                  msg.isOwn
-                    ? 'bg-blue-500 text-white rounded-br-none'
-                    : 'bg-gray-100 text-gray-900 rounded-bl-none'
-                }`}
-              >
-                {msg.message}
+            <div key={msg.id} className={`flex gap-3 ${msg.isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+              <img
+                src={msg.avatar}
+                alt={msg.sender}
+                className="w-8 h-8 rounded-full flex-shrink-0 object-cover"
+              />
+              <div className={`flex flex-col gap-1 ${msg.isOwn ? 'items-end' : 'items-start'}`}>
+                <span className="text-xs text-gray-500">{msg.timestamp}</span>
+                <div
+                  className={`px-4 py-2 rounded-lg max-w-xs break-words ${msg.isOwn
+                      ? 'bg-blue-500 text-white rounded-br-none'
+                      : 'bg-gray-100 text-gray-900 rounded-bl-none'
+                    }`}
+                >
+                  {msg.message}
+                </div>
               </div>
             </div>
-          </div>
-          </div>
-        ))}
+          ))
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -207,9 +198,10 @@ const ExchangeChat = ({ matchId = '1', partnerInfo = null }) => {
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              onKeyPress={handleKeyPress}
               placeholder="Type a message..."
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={sending}
             />
 
             <button className="text-gray-600 hover:text-blue-600 transition p-2 rounded-lg hover:bg-gray-100">
@@ -218,10 +210,10 @@ const ExchangeChat = ({ matchId = '1', partnerInfo = null }) => {
 
             <button
               onClick={handleSendMessage}
-              disabled={!newMessage.trim()}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white p-2 rounded-lg transition"
+              disabled={!newMessage.trim() || sending}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white p-2 rounded-lg transition"
             >
-              <FaPaperPlane />
+              {sending ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
             </button>
           </div>
         </div>

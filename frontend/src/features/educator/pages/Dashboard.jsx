@@ -1,9 +1,4 @@
-// ============================================
-// DASHBOARD PAGE
-// ============================================
-
 import React, { useEffect, useState, useCallback } from 'react';
-import { useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
@@ -14,18 +9,17 @@ import {
   FaTrophy,
   FaFire,
   FaClock,
-  FaChartLine,
   FaArrowRight,
   FaPlay,
   FaCalendar,
   FaUsers,
+  FaSpinner,
 } from 'react-icons/fa';
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { getUserStatistics, getEnrolledCourses } from '@/api/userApi';

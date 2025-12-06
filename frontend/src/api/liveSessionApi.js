@@ -144,6 +144,65 @@ export const getMySessions = () => {
   return axios.get(SESSION_ENDPOINTS.GET_MY_SESSIONS);
 };
 
+/**
+ * Alias for createLiveSession
+ * @param {Object} sessionData - Session data
+ * @returns {Promise}
+ */
+export const createSession = createLiveSession;
+
+/**
+ * Alias for updateLiveSession
+ * @param {string} sessionId - Session ID
+ * @param {Object} data - Session updates
+ * @returns {Promise}
+ */
+export const updateSession = updateLiveSession;
+
+/**
+ * Alias for deleteLiveSession
+ * @param {string} sessionId - Session ID
+ * @returns {Promise}
+ */
+export const deleteSession = deleteLiveSession;
+
+/**
+ * Alias for startLiveSession
+ * @param {string} sessionId - Session ID
+ * @returns {Promise}
+ */
+export const startSession = startLiveSession;
+
+/**
+ * Alias for endLiveSession
+ * @param {string} sessionId - Session ID
+ * @returns {Promise}
+ */
+export const endSession = endLiveSession;
+
+/**
+ * Alias for joinLiveSession
+ * @param {string} sessionId - Session ID
+ * @returns {Promise}
+ */
+export const joinSession = joinLiveSession;
+
+/**
+ * Alias for leaveLiveSession
+ * @param {string} sessionId - Session ID
+ * @returns {Promise}
+ */
+export const leaveSession = leaveLiveSession;
+
+/**
+ * Get session token (Agora token)
+ * @param {string} sessionId - Session ID
+ * @returns {Promise}
+ */
+export const getSessionToken = (sessionId) => {
+  return axios.get(`/live-sessions/${sessionId}/video-token`);
+};
+
 // ============================================
 // GET UPCOMING SESSIONS
 // ============================================
@@ -336,17 +395,25 @@ const liveSessionApi = {
   getLiveSessions,
   getSessionById,
   createLiveSession,
+  createSession,
   updateLiveSession,
+  updateSession,
   deleteLiveSession,
+  deleteSession,
   joinLiveSession,
+  joinSession,
   leaveLiveSession,
+  leaveSession,
   startLiveSession,
+  startSession,
   endLiveSession,
+  endSession,
   getMySessions,
   getUpcomingSessions,
   getPastSessions,
   getSessionParticipants,
   getSessionRecording,
+  getSessionToken,
   sendSessionMessage,
   getSessionMessages,
   getAgoraToken,

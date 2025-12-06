@@ -855,3 +855,335 @@ exports.unpublishCourse = asyncHandler(async (req, res) => {
 
   ApiResponse.success(res, course, 'Course unpublished successfully');
 });
+
+// ============================================
+// @desc    Get enrolled courses for current user
+// @route   GET /api/v1/courses/enrolled
+// @access  Private
+// ============================================
+exports.getEnrolledCourses = asyncHandler(async (req, res) => {
+  const courses = await Course.find({
+    'enrolledStudents.user': req.user._id,
+  })
+    .populate('instructor', 'name profileImage')
+    .select('title thumbnail instructor rating totalLectures enrolledStudents');
+
+  // Add progress for each course
+  const coursesWithProgress = courses.map((course) => {
+    const enrollment = course.enrolledStudents.find(
+      (e) => e.user.toString() === req.user._id.toString()
+    );
+    return {
+      _id: course._id,
+      title: course.title,
+      thumbnail: course.thumbnail,
+      instructor: course.instructor,
+      rating: course.rating,
+      totalLectures: course.totalLectures,
+      progress: enrollment?.progress || 0,
+      completedLectures: enrollment?.completedLectures?.length || 0,
+      lastAccessed: enrollment?.lastAccessedAt,
+      enrolledAt: enrollment?.enrolledAt,
+    };
+  });
+
+  ApiResponse.success(res, coursesWithProgress, 'Enrolled courses retrieved');
+});
+
+// ============================================
+// @desc    Get course progress
+// @route   GET /api/v1/courses/:id/progress
+// @access  Private
+// ============================================
+exports.getCourseProgress = asyncHandler(async (req, res) => {
+  const course = await Course.findById(req.params.id);
+  
+  if (!course) {
+    throw ApiError.notFound('Course not found');
+  }
+
+  const enrollment = course.enrolledStudents.find(
+    (e) => e.user.toString() === req.user._id.toString()
+  );
+
+  if (!enrollment) {
+    throw ApiError.forbidden('Not enrolled in this course');
+  }
+
+  ApiResponse.success(res, {
+    progress: enrollment.progress,
+    completedLectures: enrollment.completedLectures,
+    totalLectures: course.totalLectures,
+    lastAccessed: enrollment.lastAccessedAt,
+    enrolledAt: enrollment.enrolledAt,
+  }, 'Progress retrieved');
+});
+
+// ============================================
+// @desc    Get course reviews
+// @route   GET /api/v1/courses/:id/reviews
+// @access  Public
+// ============================================
+exports.getCourseReviews = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10 } = req.query;
+  const Review = require('../models/Review.model');
+
+  const course = await Course.findById(req.params.id);
+
+  if (!course) {
+    throw ApiError.notFound('Course not found');
+  }
+
+  // Get reviews from Review model
+  const reviews = await Review.find({ course: req.params.id })
+    .populate('user', 'name profileImage')
+    .sort('-createdAt')
+    .limit(parseInt(limit))
+    .skip((page - 1) * limit);
+
+  const total = await Review.countDocuments({ course: req.params.id });
+
+  ApiResponse.paginated(res, reviews, getPagination(page, limit, total), 'Reviews retrieved');
+});
+
+// ============================================
+// @desc    Add course review
+// @route   POST /api/v1/courses/:id/reviews
+// @access  Private
+// ============================================
+exports.addCourseReview = asyncHandler(async (req, res) => {
+  const { rating, comment, title } = req.body;
+  const Review = require('../models/Review.model');
+  
+  const course = await Course.findById(req.params.id);
+
+  if (!course) {
+    throw ApiError.notFound('Course not found');
+  }
+
+  // Check if user is enrolled
+  if (!course.isUserEnrolled(req.user._id)) {
+    throw ApiError.forbidden('Must be enrolled to review');
+  }
+
+  // Check if user already reviewed
+  const existingReview = await Review.findOne({
+    user: req.user._id,
+    course: req.params.id,
+  });
+
+  if (existingReview) {
+    throw ApiError.conflict('You have already reviewed this course');
+  }
+
+  // Create review
+  const review = await Review.create({
+    user: req.user._id,
+    course: req.params.id,
+    rating,
+    comment,
+    title,
+  });
+
+  // Add review to course
+  course.reviews.push(review._id);
+  
+  // Update course rating
+  await course.updateRating();
+  await course.save();
+
+  // Populate user data
+  await review.populate('user', 'name profileImage');
+
+  ApiResponse.created(res, review, 'Review added successfully');
+});
+
+// ============================================
+// @desc    Search courses
+// @route   GET /api/v1/courses/search
+// @access  Public
+// ============================================
+exports.searchCourses = asyncHandler(async (req, res) => {
+  const { q, limit = 10, category, level } = req.query;
+
+  if (!q) {
+    throw ApiError.badRequest('Search query required');
+  }
+
+  const query = {
+    status: 'published',
+    isPublished: true,
+    $or: [
+      { title: { $regex: q, $options: 'i' } },
+      { description: { $regex: q, $options: 'i' } },
+      { tags: { $in: [new RegExp(q, 'i')] } },
+    ],
+  };
+
+  if (category) query.category = category;
+  if (level) query.level = level;
+
+  const courses = await Course.find(query)
+    .populate('instructor', 'name profileImage')
+    .limit(parseInt(limit))
+    .select('title thumbnail instructor rating price category level');
+
+  ApiResponse.success(res, courses, 'Search results');
+});
+
+// ============================================
+// @desc    Get recommended courses
+// @route   GET /api/v1/courses/recommended
+// @access  Private
+// ============================================
+exports.getRecommendedCourses = asyncHandler(async (req, res) => {
+  const { limit = 10 } = req.query;
+  
+  // Get user's enrolled course categories
+  const enrolledCourses = await Course.find({
+    'enrolledStudents.user': req.user._id,
+  }).select('category tags');
+
+  const categories = [...new Set(enrolledCourses.map((c) => c.category))];
+  const tags = [...new Set(enrolledCourses.flatMap((c) => c.tags || []))];
+
+  let recommended;
+
+  if (categories.length > 0 || tags.length > 0) {
+    // Find similar courses user hasn't enrolled in
+    recommended = await Course.find({
+      status: 'published',
+      isPublished: true,
+      'enrolledStudents.user': { $ne: req.user._id },
+      $or: [
+        { category: { $in: categories } },
+        { tags: { $in: tags } },
+      ],
+    })
+      .populate('instructor', 'name profileImage')
+      .sort('-rating.average -totalStudents')
+      .limit(parseInt(limit))
+      .select('title thumbnail instructor rating price category');
+  } else {
+    // If no enrolled courses, return top-rated courses
+    recommended = await Course.find({
+      status: 'published',
+      isPublished: true,
+      'enrolledStudents.user': { $ne: req.user._id },
+    })
+      .populate('instructor', 'name profileImage')
+      .sort('-rating.average -totalStudents')
+      .limit(parseInt(limit))
+      .select('title thumbnail instructor rating price category');
+  }
+
+  ApiResponse.success(res, recommended, 'Recommended courses');
+});
+
+// ============================================
+// @desc    Get course analytics (for educator)
+// @route   GET /api/v1/courses/:id/analytics
+// @access  Private (Educator)
+// ============================================
+exports.getCourseAnalytics = asyncHandler(async (req, res) => {
+  const course = await Course.findById(req.params.id);
+
+  if (!course) {
+    throw ApiError.notFound('Course not found');
+  }
+
+  if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    throw ApiError.forbidden('Not authorized');
+  }
+
+  const enrolledCount = course.enrolledStudents?.length || 0;
+  const completedCount = course.enrolledStudents?.filter((e) => e.progress >= 100).length || 0;
+
+  const analytics = {
+    totalStudents: course.totalStudents || enrolledCount,
+    totalViews: course.viewCount || 0,
+    averageRating: course.rating?.average || 0,
+    totalReviews: course.rating?.count || 0,
+    completionRate: enrolledCount > 0 ? Math.round((completedCount / enrolledCount) * 100) : 0,
+    totalLectures: course.totalLectures || 0,
+    enrollmentTrend: [], // Could be calculated from enrolledStudents dates
+    recentEnrollments: course.enrolledStudents
+      ?.sort((a, b) => new Date(b.enrolledAt) - new Date(a.enrolledAt))
+      .slice(0, 10)
+      .map((e) => ({ enrolledAt: e.enrolledAt, progress: e.progress })),
+  };
+
+  ApiResponse.success(res, analytics, 'Analytics retrieved');
+});
+
+// ============================================
+// @desc    Get course students (for educator)
+// @route   GET /api/v1/courses/:id/students
+// @access  Private (Educator)
+// ============================================
+exports.getCourseStudents = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 20 } = req.query;
+
+  const course = await Course.findById(req.params.id)
+    .populate('enrolledStudents.user', 'name email profileImage');
+
+  if (!course) {
+    throw ApiError.notFound('Course not found');
+  }
+
+  if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    throw ApiError.forbidden('Not authorized');
+  }
+
+  const allStudents = course.enrolledStudents.map((e) => ({
+    user: e.user,
+    progress: e.progress,
+    enrolledAt: e.enrolledAt,
+    lastAccessed: e.lastAccessedAt,
+    completedLectures: e.completedLectures?.length || 0,
+    certificateIssued: e.certificateIssued,
+  }));
+
+  // Paginate
+  const startIndex = (page - 1) * limit;
+  const students = allStudents.slice(startIndex, startIndex + parseInt(limit));
+
+  ApiResponse.paginated(res, students, getPagination(page, limit, allStudents.length), 'Students retrieved');
+});
+
+// ============================================
+// @desc    Get course categories
+// @route   GET /api/v1/courses/categories
+// @access  Public
+// ============================================
+exports.getCourseCategories = asyncHandler(async (req, res) => {
+  const categories = [
+    'Programming',
+    'Design',
+    'Business',
+    'Marketing',
+    'Photography',
+    'Music',
+    'Health & Fitness',
+    'Language',
+    'Personal Development',
+    'Science',
+    'Mathematics',
+    'Art & Craft',
+    'Cooking',
+    'Other',
+  ];
+
+  // Get count for each category
+  const categoryCounts = await Course.aggregate([
+    { $match: { status: 'published', isPublished: true } },
+    { $group: { _id: '$category', count: { $sum: 1 } } },
+  ]);
+
+  const categoriesWithCount = categories.map((cat) => ({
+    name: cat,
+    count: categoryCounts.find((c) => c._id === cat)?.count || 0,
+  }));
+
+  ApiResponse.success(res, categoriesWithCount, 'Categories retrieved');
+});

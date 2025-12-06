@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FaSave, FaCog, FaShieldAlt, FaBell, FaDatabase, FaCreditCard, FaSpinner } from 'react-icons/fa';
-import Card from '../common/Card';
-import Button from '../common/Button';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import { getSystemSettings, updateSystemSettings } from '@/api/adminApi';
 

@@ -30,6 +30,15 @@ const {
   removeFromWishlist,
   publishCourse,
   unpublishCourse,
+  getEnrolledCourses,
+  getCourseProgress,
+  getCourseReviews,
+  addCourseReview,
+  searchCourses,
+  getRecommendedCourses,
+  getCourseAnalytics,
+  getCourseStudents,
+  getCourseCategories,
 } = require('../controllers/course.controller');
 const { protect, optionalAuth } = require('../middlewares/auth.middleware');
 const { authorize } = require('../middlewares/roleCheck.middleware');
@@ -42,7 +51,13 @@ router.get('/featured', getFeaturedCourses);
 router.get('/top-rated', getTopRatedCourses);
 router.get('/trending', getTrendingCourses);
 router.get('/popular', getTrendingCourses);  // Alias for popular courses
+router.get('/search', searchCourses);
+router.get('/categories', getCourseCategories);
 router.get('/slug/:slug', optionalAuth, getCourseBySlug);
+
+// Protected routes - Learner
+router.get('/enrolled', protect, getEnrolledCourses);
+router.get('/recommended', protect, getRecommendedCourses);
 
 // Protected routes - Educator/Admin (MUST come before /:id routes)
 router.post('/', protect, authorize('educator', 'admin'), uploadCourseFiles, validateCourse, validate, createCourse);
@@ -58,6 +73,15 @@ router.delete('/:id', protect, validateMongoId('id'), validate, deleteCourse);
 router.put('/:id/thumbnail', protect, uploadSingleImage('thumbnail'), uploadCourseThumbnail);
 router.put('/:id/publish', protect, publishCourse);
 router.put('/:id/unpublish', protect, unpublishCourse);
+
+// Course progress & reviews
+router.get('/:id/progress', protect, getCourseProgress);
+router.get('/:id/reviews', getCourseReviews);
+router.post('/:id/reviews', protect, addCourseReview);
+
+// Course analytics (educator only)
+router.get('/:id/analytics', protect, authorize('educator', 'admin'), getCourseAnalytics);
+router.get('/:id/students', protect, authorize('educator', 'admin'), getCourseStudents);
 
 // Student routes
 router.post('/:id/enroll', protect, enrollInCourse);

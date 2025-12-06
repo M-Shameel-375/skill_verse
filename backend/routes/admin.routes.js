@@ -26,6 +26,11 @@ const {
   banUser,
   approveContent,
   removeContent,
+  getAllPayments,
+  processRefund,
+  updatePaymentStatus,
+  getReports,
+  downloadReport,
 } = require('../controllers/admin.controller');
 const { protect } = require('../middlewares/auth.middleware');
 const { authorize, isAdmin } = require('../middlewares/roleCheck.middleware');
@@ -68,5 +73,40 @@ router.put('/settings', updateSystemSettings);
 // Educator applications
 router.get('/educator-applications', getEducatorApplications);
 router.put('/educator-applications/:id', validateMongoId('id'), validate, processEducatorApplication);
+
+// Payment management
+router.get('/payments', getAllPayments);
+router.post('/payments/:id/refund', validateMongoId('id'), validate, processRefund);
+router.put('/payments/:id/status', validateMongoId('id'), validate, updatePaymentStatus);
+
+// Reports
+router.get('/reports', getReports);
+router.get('/reports/:id/download', validateMongoId('id'), validate, downloadReport);
+
+// ============================================
+// TEMPORARY ENDPOINT TO PROMOTE SELF TO ADMIN
+// Remove this endpoint after first use for security!
+// ============================================
+router.post('/promote-self', protect, async (req, res) => {
+  try {
+    const userId = req.user.id; // From auth middleware
+    const user = await require('../models/User.model').findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.role = 'admin';
+    await user.save();
+
+    res.json({
+      message: 'Successfully promoted to admin role',
+      user: { name: user.name, email: user.email, role: user.role }
+    });
+  } catch (error) {
+    console.error('Error promoting user:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
 
 module.exports = router;

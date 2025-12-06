@@ -137,6 +137,10 @@ const config = {
     adminUsers: '/admin/users',
     adminCourses: '/admin/courses',
     adminAnalytics: '/admin/analytics',
+    adminModeration: '/admin/moderation',
+    adminSettings: '/admin/settings',
+    adminReports: '/admin/reports',
+    adminPayments: '/admin/payments',
     
     notFound: '/404',
     unauthorized: '/unauthorized',

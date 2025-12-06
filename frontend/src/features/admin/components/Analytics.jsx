@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FaChartLine, FaUsers, FaBook, FaDollarSign, FaArrowUp, FaArrowDown, FaSpinner } from 'react-icons/fa';
-import Card from '../common/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { getRevenueAnalytics, getUserGrowthAnalytics, getDashboardStats } from '@/api/adminApi';
 import { getAllCourses } from '@/api/courseApi';
 import toast from 'react-hot-toast';

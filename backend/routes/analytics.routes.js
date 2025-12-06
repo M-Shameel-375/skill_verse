@@ -18,7 +18,7 @@ const { validateMongoId, validate } = require('../middlewares/validation.middlew
 
 // Protected routes only
 router.use(protect);
-
+ 
 // Instructor analytics
 router.get('/instructor', authorize('educator', 'admin'), getInstructorAnalytics);
 

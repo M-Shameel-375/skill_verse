@@ -24,7 +24,8 @@ import {
   FaChevronRight,
   FaGraduationCap,
   FaUserGraduate,
-  FaChalkboardTeacher
+  FaChalkboardTeacher,
+  FaShieldAlt
 } from 'react-icons/fa';
 import config from '../../../config';
 
@@ -122,6 +123,11 @@ const getSidebarItems = (userRole) => {
   // Admin specific items
   const adminItems = [
     {
+      label: 'Dashboard',
+      path: config.routes.admin,
+      icon: FaTachometerAlt,
+    },
+    {
       label: 'Users',
       path: config.routes.adminUsers,
       icon: FaUsers,
@@ -137,14 +143,24 @@ const getSidebarItems = (userRole) => {
       icon: FaChartBar,
     },
     {
+      label: 'Content Moderation',
+      path: config.routes.adminModeration,
+      icon: FaShieldAlt,
+    },
+    {
       label: 'Reports',
-      path: '/admin/reports',
+      path: config.routes.adminReports,
       icon: FaFileAlt,
     },
     {
       label: 'Payments',
-      path: '/admin/payments',
+      path: config.routes.adminPayments,
       icon: FaDollarSign,
+    },
+    {
+      label: 'System Settings',
+      path: config.routes.adminSettings,
+      icon: FaCog,
     },
   ];
 

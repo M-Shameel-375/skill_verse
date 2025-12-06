@@ -15,6 +15,8 @@ const {
   requestRefund,
   getPaymentStatistics,
   processPayout,
+  getPaymentHistory,
+  getEarnings,
 } = require('../controllers/payment.controller');
 const { protect } = require('../middlewares/auth.middleware');
 const { authorize } = require('../middlewares/roleCheck.middleware');
@@ -30,10 +32,12 @@ router.use(protect);
 router.post('/create-intent', paymentLimiter, createPaymentIntent);
 router.post('/create-checkout', paymentLimiter, createCheckoutSession);
 router.get('/my-payments', getMyPayments);
+router.get('/history', getPaymentHistory);
 router.get('/:id', validateMongoId('id'), validate, getPaymentById);
 router.post('/:id/refund', requestRefund);
 
 // Protected routes - Educator
+router.get('/earnings', authorize('educator', 'admin'), getEarnings);
 router.get('/my/earnings', authorize('educator', 'admin'), getMyEarnings);
 
 // Protected routes - Admin

@@ -649,3 +649,176 @@ exports.removeContent = asyncHandler(async (req, res) => {
 
   throw ApiError.notFound('Content not found');
 });
+
+// ============================================
+// @desc    Get all payments
+// @route   GET /api/v1/admin/payments
+// @access  Private (Admin)
+// ============================================
+exports.getAllPayments = asyncHandler(async (req, res) => {
+  const { status, type, page = 1, limit = 20 } = req.query;
+
+  const filter = {};
+  if (status && status !== 'all') filter.status = status;
+  if (type && type !== 'all') filter.type = type;
+
+  const payments = await Payment.find(filter)
+    .populate('user', 'name email')
+    .populate('course', 'title')
+    .sort({ createdAt: -1 })
+    .limit(limit * 1)
+    .skip((page - 1) * limit);
+
+  const total = await Payment.countDocuments(filter);
+
+  ApiResponse.success(res, {
+    payments,
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      pages: Math.ceil(total / limit),
+    },
+  }, 'Payments retrieved successfully');
+});
+
+// ============================================
+// @desc    Process refund
+// @route   POST /api/v1/admin/payments/:id/refund
+// @access  Private (Admin)
+// ============================================
+exports.processRefund = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const payment = await Payment.findById(id);
+
+  if (!payment) {
+    throw ApiError.notFound('Payment not found');
+  }
+
+  if (payment.status !== 'completed') {
+    throw ApiError.badRequest('Only completed payments can be refunded');
+  }
+
+  // In a real app, you would integrate with Stripe for refunds
+  // For now, we'll just update the status
+  payment.status = 'refunded';
+  payment.refundedAt = new Date();
+  await payment.save();
+
+  ApiResponse.success(res, payment, 'Refund processed successfully');
+});
+
+// ============================================
+// @desc    Update payment status
+// @route   PUT /api/v1/admin/payments/:id/status
+// @access  Private (Admin)
+// ============================================
+exports.updatePaymentStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!['pending', 'completed', 'failed', 'refunded'].includes(status)) {
+    throw ApiError.badRequest('Invalid status');
+  }
+
+  const payment = await Payment.findById(id);
+  if (!payment) {
+    throw ApiError.notFound('Payment not found');
+  }
+
+  payment.status = status;
+  if (status === 'completed') {
+    payment.completedAt = new Date();
+  }
+
+  await payment.save();
+
+  ApiResponse.success(res, payment, 'Payment status updated successfully');
+});
+
+// ============================================
+// @desc    Get reports
+// @route   GET /api/v1/admin/reports
+// @access  Private (Admin)
+// ============================================
+exports.getReports = asyncHandler(async (req, res) => {
+  const { type, period } = req.query;
+
+  // In a real app, you would generate actual reports
+  // For now, we'll return mock report data
+  const reports = [
+    {
+      _id: '1',
+      title: 'User Registration Report',
+      type: 'user',
+      description: 'Monthly user registration statistics',
+      createdAt: new Date(),
+      size: '2.3 MB',
+      downloadUrl: '/reports/user-registration-2024.pdf',
+    },
+    {
+      _id: '2',
+      title: 'Course Enrollment Report',
+      type: 'course',
+      description: 'Course enrollment and completion rates',
+      createdAt: new Date(Date.now() - 86400000), // Yesterday
+      size: '1.8 MB',
+      downloadUrl: '/reports/course-enrollment-2024.pdf',
+    },
+    {
+      _id: '3',
+      title: 'Revenue Report',
+      type: 'payment',
+      description: 'Monthly revenue and transaction summary',
+      createdAt: new Date(Date.now() - 172800000), // 2 days ago
+      size: '3.1 MB',
+      downloadUrl: '/reports/revenue-2024.pdf',
+    },
+    {
+      _id: '4',
+      title: 'Platform Analytics',
+      type: 'analytics',
+      description: 'Comprehensive platform usage analytics',
+      createdAt: new Date(Date.now() - 259200000), // 3 days ago
+      size: '4.2 MB',
+      downloadUrl: '/reports/analytics-2024.pdf',
+    },
+  ];
+
+  let filteredReports = reports;
+  if (type && type !== 'all') {
+    filteredReports = reports.filter(report => report.type === type);
+  }
+
+  ApiResponse.success(res, { reports: filteredReports }, 'Reports retrieved successfully');
+});
+
+// ============================================
+// @desc    Download report
+// @route   GET /api/v1/admin/reports/:id/download
+// @access  Private (Admin)
+// ============================================
+exports.downloadReport = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // In a real app, you would generate or retrieve the actual report file
+  // For now, we'll return a mock response
+  const reports = {
+    '1': { filename: 'user-registration-2024.pdf', content: 'Mock PDF content for user report' },
+    '2': { filename: 'course-enrollment-2024.pdf', content: 'Mock PDF content for course report' },
+    '3': { filename: 'revenue-2024.pdf', content: 'Mock PDF content for revenue report' },
+    '4': { filename: 'analytics-2024.pdf', content: 'Mock PDF content for analytics report' },
+  };
+
+  const report = reports[id];
+  if (!report) {
+    throw ApiError.notFound('Report not found');
+  }
+
+  // Set headers for file download
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`);
+
+  // In a real app, you would stream the actual file
+  res.send(report.content);
+});

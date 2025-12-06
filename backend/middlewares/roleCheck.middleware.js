@@ -130,3 +130,34 @@ exports.authorizeOrOwner = (...roles) => {
     throw ApiError.forbidden('You do not have permission to access this resource');
   };
 };
+
+// ============================================
+// REQUIRE ROLE - CHECK IF USER HAS ONE OF THE ROLES
+// ============================================
+exports.requireRole = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      throw ApiError.unauthorized('Please login to access this resource');
+    }
+
+    // Support both single role (string) and multiple roles (array)
+    const userRoles = Array.isArray(req.user.roles) 
+      ? req.user.roles 
+      : [req.user.role];
+    
+    // Also check activeRole if available
+    if (req.user.activeRole) {
+      userRoles.push(req.user.activeRole);
+    }
+
+    const hasRole = roles.some(role => userRoles.includes(role));
+
+    if (!hasRole) {
+      throw ApiError.forbidden(
+        `Access denied. Required role(s): ${roles.join(', ')}`
+      );
+    }
+
+    next();
+  };
+};

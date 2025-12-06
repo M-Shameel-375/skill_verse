@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FaUsers, FaBook, FaStar, FaChartLine, FaSpinner, FaArrowUp, FaArrowDown } from 'react-icons/fa';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { getInstructorAnalytics, getCourseAnalytics } from '@/api/adminApi';
+import { getEducatorAnalytics } from '@/api/educatorApi';
 import { getMyCourses } from '@/api/courseApi';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -32,7 +32,7 @@ const StudentAnalytics = () => {
       // Fetch courses and analytics in parallel
       const [coursesRes, analyticsRes] = await Promise.all([
         getMyCourses().catch(() => ({ data: [] })),
-        getInstructorAnalytics().catch(() => ({ data: {} })),
+        getEducatorAnalytics().catch(() => ({ data: {} })),
       ]);
 
       const courseList = coursesRes.data || [];

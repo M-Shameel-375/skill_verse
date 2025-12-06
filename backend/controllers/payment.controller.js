@@ -285,6 +285,97 @@ exports.getMyPayments = asyncHandler(async (req, res) => {
 });
 
 // ============================================
+// @desc    Get payment history
+// @route   GET /api/v1/payments/history
+// @access  Private
+// ============================================
+exports.getPaymentHistory = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10, type } = req.query;
+
+  const query = {
+    $or: [{ payer: req.user._id }, { receiver: req.user._id }],
+  };
+
+  if (type === 'received') query.receiver = req.user._id;
+  if (type === 'sent') query.payer = req.user._id;
+
+  const payments = await Payment.find(query)
+    .populate('course', 'title thumbnail')
+    .populate('payer', 'name')
+    .sort('-createdAt')
+    .limit(parseInt(limit))
+    .skip((page - 1) * limit);
+
+  const total = await Payment.countDocuments(query);
+
+  ApiResponse.paginated(res, payments, getPagination(page, limit, total), 'History retrieved');
+});
+
+// ============================================
+// @desc    Get earnings (for educators)
+// @route   GET /api/v1/payments/earnings
+// @access  Private (Educator)
+// ============================================
+exports.getEarnings = asyncHandler(async (req, res) => {
+  const { period = 'month' } = req.query;
+  
+  const user = await User.findById(req.user._id);
+  
+  // Calculate period dates
+  const now = new Date();
+  let startDate;
+  
+  switch (period) {
+    case 'week':
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case 'month':
+      startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      break;
+    case 'year':
+      startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      break;
+    default:
+      startDate = null;
+  }
+
+  const matchQuery = { receiver: req.user._id, status: 'succeeded' };
+  if (startDate) matchQuery.createdAt = { $gte: startDate };
+
+  const earnings = await Payment.aggregate([
+    { $match: matchQuery },
+    {
+      $group: {
+        _id: null,
+        total: { $sum: '$amount.total' },
+        platformFees: { $sum: '$amount.platformFee' },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const thisMonth = await Payment.aggregate([
+    {
+      $match: {
+        receiver: req.user._id,
+        status: 'succeeded',
+        createdAt: { $gte: new Date(new Date().setDate(1)) },
+      },
+    },
+    { $group: { _id: null, total: { $sum: '$amount.total' } } },
+  ]);
+
+  ApiResponse.success(res, {
+    summary: {
+      total: user.educatorProfile?.earnings?.total || earnings[0]?.total || 0,
+      thisMonth: thisMonth[0]?.total || 0,
+      pending: user.educatorProfile?.earnings?.pending || 0,
+      withdrawn: user.educatorProfile?.earnings?.withdrawn || 0,
+    },
+  }, 'Earnings retrieved');
+});
+
+// ============================================
 // @desc    Get instructor earnings
 // @route   GET /api/v1/payments/my-earnings
 // @access  Private (Educator)

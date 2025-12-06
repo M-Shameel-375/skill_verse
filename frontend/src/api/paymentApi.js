@@ -122,6 +122,49 @@ export const getPayouts = (params = {}) => {
   return axios.get(PAYMENT_ENDPOINTS.GET_PAYOUTS, { params });
 };
 
+/**
+ * Alias for getPayouts - Get payout history
+ * @returns {Promise}
+ */
+export const getPayoutHistory = () => {
+  return axios.get(PAYMENT_ENDPOINTS.GET_PAYOUTS);
+};
+
+// ============================================
+// GET PAYOUT SETTINGS
+// ============================================
+/**
+ * Get payout settings for educator
+ * @returns {Promise}
+ */
+export const getPayoutSettings = () => {
+  return axios.get('/payments/payout-settings');
+};
+
+// ============================================
+// UPDATE PAYOUT SETTINGS
+// ============================================
+/**
+ * Update payout settings
+ * @param {Object} data - { bankAccount, paypalEmail, minPayoutAmount }
+ * @returns {Promise}
+ */
+export const updatePayoutSettings = (data) => {
+  return axios.put('/payments/payout-settings', data);
+};
+
+// ============================================
+// CONFIRM PAYMENT
+// ============================================
+/**
+ * Confirm payment completion
+ * @param {string} paymentIntentId - Payment intent ID
+ * @returns {Promise}
+ */
+export const confirmPayment = (paymentIntentId) => {
+  return axios.post('/payments/confirm', { paymentIntentId });
+};
+
 // ============================================
 // VERIFY PAYMENT
 // ============================================
@@ -296,6 +339,10 @@ const paymentApi = {
   getTransactions,
   requestPayout,
   getPayouts,
+  getPayoutHistory,
+  getPayoutSettings,
+  updatePayoutSettings,
+  confirmPayment,
   verifyPayment,
   refundPayment,
   getInvoice,

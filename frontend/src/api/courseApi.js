@@ -106,7 +106,7 @@ export const deleteCourse = (courseId) => {
  * @returns {Promise}
  */
 export const enrollInCourse = (courseId) => {
-  return axios.post(`${COURSE_ENDPOINTS.ENROLL}/${courseId}`);
+  return axios.post(`/courses/${courseId}/enroll`);
 };
 
 // ============================================
@@ -140,7 +140,7 @@ export const getMyCourses = () => {
  * @returns {Promise}
  */
 export const getEnrolledCourses = () => {
-  return axios.get(COURSE_ENDPOINTS.GET_ENROLLED);
+  return axios.get('/users/me/courses');
 };
 
 // ============================================
@@ -346,6 +346,100 @@ export const addLecture = (courseId, sectionId, lectureData) => {
   return axios.post(`/courses/${courseId}/sections/${sectionId}/lectures`, lectureData);
 };
 
+/**
+ * Alias for addLecture - Add lesson to course
+ * @param {string} courseId - Course ID
+ * @param {Object} lessonData - Lesson data
+ * @returns {Promise}
+ */
+export const addLesson = (courseId, lessonData) => {
+  const isFormData = lessonData instanceof FormData;
+  return axios.post(`/courses/${courseId}/lessons`, lessonData, {
+    headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {},
+  });
+};
+
+/**
+ * Update lesson
+ * @param {string} courseId - Course ID
+ * @param {string} lessonId - Lesson ID
+ * @param {Object} data - Lesson updates
+ * @returns {Promise}
+ */
+export const updateLesson = (courseId, lessonId, data) => {
+  const isFormData = data instanceof FormData;
+  return axios.put(`/courses/${courseId}/lessons/${lessonId}`, data, {
+    headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {},
+  });
+};
+
+/**
+ * Delete lesson
+ * @param {string} courseId - Course ID
+ * @param {string} lessonId - Lesson ID
+ * @returns {Promise}
+ */
+export const deleteLesson = (courseId, lessonId) => {
+  return axios.delete(`/courses/${courseId}/lessons/${lessonId}`);
+};
+
+/**
+ * Reorder lessons
+ * @param {string} courseId - Course ID
+ * @param {Array} lessonOrder - Array of lesson IDs in new order
+ * @returns {Promise}
+ */
+export const reorderLessons = (courseId, lessonOrder) => {
+  return axios.put(`/courses/${courseId}/lessons/reorder`, { lessonOrder });
+};
+
+/**
+ * Reorder sections
+ * @param {string} courseId - Course ID
+ * @param {Array} sectionOrder - Array of section IDs in new order
+ * @returns {Promise}
+ */
+export const reorderSections = (courseId, sectionOrder) => {
+  return axios.put(`/courses/${courseId}/sections/reorder`, { sectionOrder });
+};
+
+// ============================================
+// COURSE ANALYTICS
+// ============================================
+/**
+ * Get course analytics for educator
+ * @param {string} courseId - Course ID
+ * @returns {Promise}
+ */
+export const getCourseAnalytics = (courseId) => {
+  return axios.get(`/courses/${courseId}/analytics`);
+};
+
+/**
+ * Get enrolled students for a course
+ * @param {string} courseId - Course ID
+ * @returns {Promise}
+ */
+export const getCourseStudents = (courseId) => {
+  return axios.get(`/courses/${courseId}/students`);
+};
+
+/**
+ * Get course reviews
+ * @param {string} courseId - Course ID
+ * @returns {Promise}
+ */
+export const getCourseReviews = (courseId) => {
+  return axios.get(`/courses/${courseId}/reviews`);
+};
+
+/**
+ * Search courses
+ * @param {string} query - Search query
+ * @returns {Promise}
+ */
+;
+
 // ============================================
 // EXPORT ALL COURSE API METHODS
 // ============================================
@@ -374,7 +468,15 @@ const courseApi = {
   addSection,
   updateSection,
   deleteSection,
+  reorderSections,
   addLecture,
+  addLesson,
+  updateLesson,
+  deleteLesson,
+  reorderLessons,
+  getCourseAnalytics,
+  getCourseStudents,
+  getCourseReviews,
 };
 
 export default courseApi;

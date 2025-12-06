@@ -1,321 +1,217 @@
 // ============================================
-// SKILL EXCHANGE API ENDPOINTS
+// SKILL EXCHANGE API - COMPLETE
 // ============================================
 
 import axios from './axios';
 
-const EXCHANGE_ENDPOINTS = {
-  GET_EXCHANGES: '/skill-exchanges',
-  GET_EXCHANGE: '/skill-exchanges',
-  CREATE_EXCHANGE: '/skill-exchanges',
-  UPDATE_EXCHANGE: '/skill-exchanges',
-  DELETE_EXCHANGE: '/skill-exchanges',
-  ACCEPT_REQUEST: '/skill-exchanges/accept',
-  REJECT_REQUEST: '/skill-exchanges/reject',
-  COMPLETE_EXCHANGE: '/skill-exchanges/complete',
-  CANCEL_EXCHANGE: '/skill-exchanges/cancel',
-  GET_MY_EXCHANGES: '/skill-exchanges/my-exchanges',
-  GET_RECEIVED: '/skill-exchanges/received',
-  GET_SENT: '/skill-exchanges/sent',
-  FIND_MATCHES: '/skill-exchanges/find-matches',
-  RATE_PARTNER: '/skill-exchanges/rate',
-  GET_AVAILABILITY: '/skill-exchanges/availability',
-  SET_AVAILABILITY: '/skill-exchanges/availability',
-  SEARCH_SKILLS: '/skill-exchanges/search',
-};
+// ==================== EXCHANGES ====================
 
-// ============================================
-// GET ALL SKILL EXCHANGES
-// ============================================
 /**
- * Get all skill exchange requests with filters
- * @param {Object} params - { page, limit, offeredSkill, desiredSkill, status }
- * @returns {Promise}
+ * Get all skill exchanges (marketplace)
  */
-export const getSkillExchanges = (params = {}) => {
-  return axios.get(EXCHANGE_ENDPOINTS.GET_EXCHANGES, { params });
+export const getSkillExchanges = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  return axios.get(`/skill-exchanges?${queryString}`);
 };
 
-// ============================================
-// GET EXCHANGE BY ID
-// ============================================
 /**
- * Get skill exchange details
- * @param {string} exchangeId - Exchange ID
- * @returns {Promise}
+ * Get exchange by ID
  */
-export const getExchangeById = (exchangeId) => {
-  return axios.get(`${EXCHANGE_ENDPOINTS.GET_EXCHANGE}/${exchangeId}`);
+export const getExchangeById = async (exchangeId) => {
+  return axios.get(`/skill-exchanges/${exchangeId}`);
 };
 
-// ============================================
-// CREATE SKILL EXCHANGE REQUEST
-// ============================================
 /**
- * Create new skill exchange request
- * @param {Object} exchangeData - { offeredSkill, desiredSkill, description, targetUserId }
- * @returns {Promise}
+ * Get my exchanges (as participant)
  */
-export const createSkillExchange = (exchangeData) => {
-  return axios.post(EXCHANGE_ENDPOINTS.CREATE_EXCHANGE, exchangeData);
+export const getMyExchanges = async (status) => {
+  const url = status ? `/skill-exchanges/my?status=${status}` : '/skill-exchanges/my';
+  return axios.get(url);
 };
 
-// ============================================
-// UPDATE SKILL EXCHANGE
-// ============================================
 /**
- * Update skill exchange request
- * @param {string} exchangeId - Exchange ID
- * @param {Object} updates - Exchange updates
- * @returns {Promise}
+ * Create new skill exchange listing
  */
-export const updateSkillExchange = (exchangeId, updates) => {
-  return axios.put(`${EXCHANGE_ENDPOINTS.UPDATE_EXCHANGE}/${exchangeId}`, updates);
+export const createSkillExchange = async (data) => {
+  return axios.post('/skill-exchanges', data);
 };
 
-// ============================================
-// DELETE SKILL EXCHANGE
-// ============================================
 /**
- * Delete skill exchange request
- * @param {string} exchangeId - Exchange ID
- * @returns {Promise}
+ * Update skill exchange
  */
-export const deleteSkillExchange = (exchangeId) => {
-  return axios.delete(`${EXCHANGE_ENDPOINTS.DELETE_EXCHANGE}/${exchangeId}`);
+export const updateSkillExchange = async (exchangeId, data) => {
+  return axios.put(`/skill-exchanges/${exchangeId}`, data);
 };
 
-// ============================================
-// ACCEPT EXCHANGE REQUEST
-// ============================================
 /**
- * Accept a skill exchange request
- * @param {string} exchangeId - Exchange ID
- * @returns {Promise}
+ * Delete skill exchange
  */
-export const acceptExchangeRequest = (exchangeId) => {
-  return axios.post(`${EXCHANGE_ENDPOINTS.ACCEPT_REQUEST}/${exchangeId}`);
+export const deleteSkillExchange = async (exchangeId) => {
+  return axios.delete(`/skill-exchanges/${exchangeId}`);
 };
 
-// ============================================
-// REJECT EXCHANGE REQUEST
-// ============================================
+// ==================== REQUESTS ====================
+
 /**
- * Reject a skill exchange request
- * @param {string} exchangeId - Exchange ID
- * @param {string} reason - Rejection reason
- * @returns {Promise}
+ * Get pending exchange requests (received)
  */
-export const rejectExchangeRequest = (exchangeId, reason) => {
-  return axios.post(`${EXCHANGE_ENDPOINTS.REJECT_REQUEST}/${exchangeId}`, { reason });
+export const getPendingRequests = async () => {
+  return axios.get('/skill-exchanges/requests/pending');
 };
 
-// ============================================
-// COMPLETE EXCHANGE
-// ============================================
 /**
- * Mark exchange as completed
- * @param {string} exchangeId - Exchange ID
- * @returns {Promise}
+ * Get received requests
  */
-export const completeExchange = (exchangeId) => {
-  return axios.post(`${EXCHANGE_ENDPOINTS.COMPLETE_EXCHANGE}/${exchangeId}`);
+export const getReceivedRequests = async () => {
+  return axios.get('/skill-exchanges/requests/received');
 };
 
-// ============================================
-// CANCEL EXCHANGE
-// ============================================
 /**
- * Cancel a skill exchange
- * @param {string} exchangeId - Exchange ID
- * @param {string} reason - Cancellation reason
- * @returns {Promise}
+ * Get sent requests
  */
-export const cancelExchange = (exchangeId, reason) => {
-  return axios.post(`${EXCHANGE_ENDPOINTS.CANCEL_EXCHANGE}/${exchangeId}`, { reason });
+export const getSentRequests = async () => {
+  return axios.get('/skill-exchanges/requests/sent');
 };
 
-// ============================================
-// GET MY EXCHANGES
-// ============================================
 /**
- * Get all exchanges (sent + received)
- * @returns {Promise}
+ * Send exchange request
  */
-export const getMyExchanges = () => {
-  return axios.get(EXCHANGE_ENDPOINTS.GET_MY_EXCHANGES);
+export const sendExchangeRequest = async (exchangeId, data) => {
+  return axios.post(`/skill-exchanges/${exchangeId}/request`, data);
 };
 
-// ============================================
-// GET PENDING REQUESTS
-// ============================================
 /**
- * Get all pending exchange requests
- * @returns {Promise}
+ * Accept exchange request
  */
-export const getPendingRequests = () => {
-  return axios.get(EXCHANGE_ENDPOINTS.GET_RECEIVED, { params: { status: 'pending' } });
+export const acceptExchangeRequest = async (exchangeId) => {
+  return axios.post(`/skill-exchanges/${exchangeId}/accept`);
 };
 
-// ============================================
-// GET RECEIVED REQUESTS
-// ============================================
 /**
- * Get received skill exchange requests
- * @returns {Promise}
+ * Reject exchange request
  */
-export const getReceivedRequests = () => {
-  return axios.get(EXCHANGE_ENDPOINTS.GET_RECEIVED);
+export const rejectExchangeRequest = async (exchangeId, reason) => {
+  return axios.post(`/skill-exchanges/${exchangeId}/reject`, { reason });
 };
 
-// ============================================
-// GET SENT REQUESTS
-// ============================================
+// Alias for component compatibility
+export const acceptExchange = acceptExchangeRequest;
+export const rejectExchange = rejectExchangeRequest;
+
+// ==================== MATCHING ====================
+
 /**
- * Get sent skill exchange requests
- * @returns {Promise}
+ * Find skill matches based on user's skills
  */
-export const getSentRequests = () => {
-  return axios.get(EXCHANGE_ENDPOINTS.GET_SENT);
+export const findMatches = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  return axios.get(`/skill-exchanges/matches?${queryString}`);
 };
 
-// ============================================
-// FIND MATCHES
-// ============================================
 /**
- * Find matching users for skill exchange
- * @param {Object} params - { offeredSkill, desiredSkill } as query params
- * @returns {Promise}
+ * Get available matches
  */
-export const findMatches = (params = {}) => {
-  return axios.get('/skill-exchanges/matches', { params });
+export const getAvailableMatches = async (params = {}) => {
+  const queryString = new URLSearchParams(params).toString();
+  return axios.get(`/skill-exchanges/matches/available?${queryString}`);
 };
 
-// ============================================
-// RATE EXCHANGE PARTNER
-// ============================================
+// ==================== SESSIONS ====================
+
 /**
- * Rate exchange partner after completion
- * @param {string} exchangeId - Exchange ID
- * @param {Object} ratingData - { rating, review }
- * @returns {Promise}
+ * Complete an exchange
  */
-export const rateExchangePartner = (exchangeId, ratingData) => {
-  return axios.post(`${EXCHANGE_ENDPOINTS.RATE_PARTNER}/${exchangeId}`, ratingData);
+export const completeExchange = async (exchangeId, data = {}) => {
+  return axios.post(`/skill-exchanges/${exchangeId}/complete`, data);
 };
 
-// ============================================
-// GET USER AVAILABILITY
-// ============================================
 /**
- * Get user's availability for skill exchange
- * @param {string} userId - User ID
- * @returns {Promise}
+ * Rate an exchange partner
  */
-export const getUserAvailability = (userId) => {
-  return axios.get(`${EXCHANGE_ENDPOINTS.GET_AVAILABILITY}/${userId}`);
+export const rateExchange = async (exchangeId, data) => {
+  return axios.post(`/skill-exchanges/${exchangeId}/rate`, data);
 };
 
-// ============================================
-// SET AVAILABILITY
-// ============================================
 /**
- * Set availability for skill exchange
- * @param {Array} availability - Array of { day, timeSlots: [{ start, end }] }
- * @returns {Promise}
+ * Get exchange history
  */
-export const setAvailability = (availability) => {
-  return axios.post(EXCHANGE_ENDPOINTS.SET_AVAILABILITY, { availability });
+export const getExchangeHistory = async (exchangeId) => {
+  return axios.get(`/skill-exchanges/${exchangeId}/history`);
 };
 
-// ============================================
-// SEARCH SKILLS
-// ============================================
+// ==================== SKILLS ====================
+
 /**
- * Search for skills
- * @param {string} query - Search query
- * @returns {Promise}
+ * Get my offered skills
  */
-export const searchSkills = (query) => {
-  return axios.get(`${EXCHANGE_ENDPOINTS.SEARCH_SKILLS}?q=${query}`);
+export const getMyOfferedSkills = async () => {
+  return axios.get('/users/skills/offered');
 };
 
-// ============================================
-// SCHEDULE EXCHANGE SESSION
-// ============================================
 /**
- * Schedule an exchange session
- * @param {string} exchangeId - Exchange ID
- * @param {Object} scheduleData - { date, time, duration, platform }
- * @returns {Promise}
+ * Get my desired skills
  */
-export const scheduleExchangeSession = (exchangeId, scheduleData) => {
-  return axios.post(`/skill-exchanges/${exchangeId}/schedule`, scheduleData);
+export const getMyDesiredSkills = async () => {
+  return axios.get('/users/skills/desired');
 };
 
-// ============================================
-// RESCHEDULE EXCHANGE SESSION
-// ============================================
 /**
- * Reschedule an exchange session
- * @param {string} exchangeId - Exchange ID
- * @param {Object} scheduleData - { date, time }
- * @returns {Promise}
+ * Add offered skill
  */
-export const rescheduleExchangeSession = (exchangeId, scheduleData) => {
-  return axios.put(`/skill-exchanges/${exchangeId}/reschedule`, scheduleData);
+export const addOfferedSkill = async (skillData) => {
+  return axios.post('/users/skills/offered', skillData);
 };
 
-// ============================================
-// GET EXCHANGE HISTORY
-// ============================================
 /**
- * Get user's exchange history
- * @returns {Promise}
+ * Add desired skill
  */
-export const getExchangeHistory = () => {
-  return axios.get('/skill-exchanges/history');
+export const addDesiredSkill = async (skillData) => {
+  return axios.post('/users/skills/desired', skillData);
 };
 
-// ============================================
-// REPORT EXCHANGE
-// ============================================
 /**
- * Report an exchange or user
- * @param {string} exchangeId - Exchange ID
- * @param {Object} reportData - { reason, description }
- * @returns {Promise}
+ * Remove offered skill
  */
-export const reportExchange = (exchangeId, reportData) => {
-  return axios.post(`/skill-exchanges/${exchangeId}/report`, reportData);
+export const removeOfferedSkill = async (skillId) => {
+  return axios.delete(`/users/skills/offered/${skillId}`);
 };
 
-// ============================================
-// EXPORT ALL SKILL EXCHANGE API METHODS
-// ============================================
-const skillExchangeApi = {
+/**
+ * Remove desired skill
+ */
+export const removeDesiredSkill = async (skillId) => {
+  return axios.delete(`/users/skills/desired/${skillId}`);
+};
+
+export default {
+  // Exchanges
   getSkillExchanges,
   getExchangeById,
+  getMyExchanges,
   createSkillExchange,
   updateSkillExchange,
   deleteSkillExchange,
-  acceptExchangeRequest,
-  rejectExchangeRequest,
-  completeExchange,
-  cancelExchange,
-  getMyExchanges,
+  // Requests
   getPendingRequests,
   getReceivedRequests,
   getSentRequests,
+  sendExchangeRequest,
+  acceptExchangeRequest,
+  rejectExchangeRequest,
+  acceptExchange,
+  rejectExchange,
+  // Matching
   findMatches,
-  rateExchangePartner,
-  getUserAvailability,
-  setAvailability,
-  searchSkills,
-  scheduleExchangeSession,
-  rescheduleExchangeSession,
+  getAvailableMatches,
+  // Sessions
+  completeExchange,
+  rateExchange,
   getExchangeHistory,
-  reportExchange,
+  // Skills
+  getMyOfferedSkills,
+  getMyDesiredSkills,
+  addOfferedSkill,
+  addDesiredSkill,
+  removeOfferedSkill,
+  removeDesiredSkill,
 };
-
-export default skillExchangeApi;

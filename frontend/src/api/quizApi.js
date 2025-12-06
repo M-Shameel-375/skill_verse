@@ -167,6 +167,36 @@ export const getCourseQuizzes = (courseId) => {
 };
 
 // ============================================
+// GET MY QUIZZES
+// ============================================
+/**
+ * Get quizzes created by educator
+ * @returns {Promise}
+ */
+export const getMyQuizzes = () => {
+  return axios.get('/quizzes/my');
+};
+
+// ============================================
+// GET QUIZ RESULTS
+// ============================================
+/**
+ * Get all quiz results for educator
+ * @param {string} quizId - Quiz ID
+ * @returns {Promise}
+ */
+export const getQuizResults = (quizId) => {
+  return axios.get(`/quizzes/${quizId}/results`);
+};
+
+/**
+ * Alias for getUserQuizAttempts - Get my attempts
+ * @param {string} quizId - Quiz ID
+ * @returns {Promise}
+ */
+export const getMyQuizAttempts = getUserQuizAttempts;
+
+// ============================================
 // ADD QUESTION
 // ============================================
 /**
@@ -275,6 +305,8 @@ export const unpublishQuiz = (quizId) => {
 const quizApi = {
   getQuizzes,
   getQuizById,
+  getMyQuizzes,
+  getCourseQuizzes,
   createQuiz,
   updateQuiz,
   deleteQuiz,
@@ -282,9 +314,9 @@ const quizApi = {
   submitQuiz,
   getQuizResults,
   getUserQuizAttempts,
+  getMyQuizAttempts,
   retakeQuiz,
   getQuizLeaderboard,
-  getCourseQuizzes,
   addQuestion,
   updateQuestion,
   deleteQuestion,

@@ -261,7 +261,7 @@ const AdminDashboard = ({ user: dbUser }) => {
                   <span className="text-sm font-medium text-gray-700">View Analytics</span>
                 </button>
                 <button 
-                  onClick={() => navigate('/admin/content')}
+                  onClick={() => navigate('/admin/moderation')}
                   className="p-4 bg-orange-50 hover:bg-orange-100 rounded-lg text-center transition-colors"
                 >
                   <FaStar className="text-2xl text-orange-600 mx-auto mb-2" />

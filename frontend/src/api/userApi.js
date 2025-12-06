@@ -167,24 +167,40 @@ export const endorseSkill = (userId, skillId) => {
 // GET USER STATISTICS
 // ============================================
 /**
- * Get user learning statistics
+ * Get current user's learning statistics
+ * @returns {Promise}
+ */
+export const getUserStatistics = () => {
+  return axios.get('/users/statistics');
+};
+
+/**
+ * Get user's statistics by ID
  * @param {string} userId - User ID
  * @returns {Promise}
  */
-export const getUserStatistics = (userId) => {
-  return axios.get(`${USER_ENDPOINTS.GET_STATISTICS}/${userId}`);
+export const getUserStatsById = (userId) => {
+  return axios.get(`/users/${userId}/stats`);
 };
 
 // ============================================
 // GET ENROLLED COURSES
 // ============================================
 /**
- * Get user's enrolled courses
+ * Get current user's enrolled courses
+ * @returns {Promise}
+ */
+export const getEnrolledCourses = () => {
+  return axios.get('/courses/enrolled');
+};
+
+/**
+ * Get user's enrolled courses by ID
  * @param {string} userId - User ID
  * @returns {Promise}
  */
-export const getEnrolledCourses = (userId) => {
-  return axios.get(`${USER_ENDPOINTS.GET_ENROLLED_COURSES}/${userId}`);
+export const getUserEnrolledCourses = (userId) => {
+  return axios.get(`/users/${userId}/courses`);
 };
 
 // ============================================
@@ -196,7 +212,7 @@ export const getEnrolledCourses = (userId) => {
  * @returns {Promise}
  */
 export const getUserCertificates = (userId) => {
-  return axios.get(`${USER_ENDPOINTS.GET_CERTIFICATES}/${userId}`);
+  return axios.get(`/users/${userId}/certificates`);
 };
 
 // ============================================
@@ -208,7 +224,7 @@ export const getUserCertificates = (userId) => {
  * @returns {Promise}
  */
 export const getUserBadges = (userId) => {
-  return axios.get(`${USER_ENDPOINTS.GET_BADGES}/${userId}`);
+  return axios.get(`/users/${userId}/badges`);
 };
 
 // ============================================
@@ -317,7 +333,7 @@ export const getUserProfile = () => {
  */
 export const updateProfile = (updates) => {
   const isFormData = updates instanceof FormData;
-  return axios.put('/users/me', updates, {
+  return axios.put('/users/profile', updates, {
     headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {},
   });
 };
@@ -335,14 +351,98 @@ export const applyAsEducator = (applicationData) => {
 };
 
 // ============================================
+// SYNC USER (Clerk → MongoDB)
+// ============================================
+/**
+ * Sync user from Clerk to MongoDB
+ * @param {Object} userData - { clerkId, email, name, profileImage }
+ * @returns {Promise}
+ */
+export const syncUser = (userData) => {
+  return axios.post('/users/sync', userData);
+};
+
+// ============================================
+// GET NOTIFICATION PREFERENCES
+// ============================================
+/**
+ * Get user's notification preferences
+ * @returns {Promise}
+ */
+export const getNotificationPreferences = () => {
+  return axios.get('/users/notification-preferences');
+};
+
+// ============================================
+// UPDATE NOTIFICATION PREFERENCES
+// ============================================
+/**
+ * Update user's notification preferences
+ * @param {Object} preferences - Notification preferences
+ * @returns {Promise}
+ */
+export const updateNotificationPreferences = (preferences) => {
+  return axios.put('/users/notification-preferences', preferences);
+};
+
+// ============================================
+// DELETE ACCOUNT
+// ============================================
+/**
+ * Delete current user's account
+ * @returns {Promise}
+ */
+export const deleteAccount = () => {
+  return axios.delete('/users/me');
+};
+
+// ============================================
+// UPDATE USER ROLE
+// ============================================
+/**
+ * Update user's role (for role selection)
+ * @param {string} role - New role
+ * @returns {Promise}
+ */
+export const updateUserRole = (role) => {
+  return axios.put('/users/role', { role });
+};
+
+// ============================================
+// SWITCH ACTIVE ROLE
+// ============================================
+/**
+ * Switch active role (for users with multiple roles)
+ * @param {string} role - Role to switch to
+ * @returns {Promise}
+ */
+export const switchActiveRole = (role) => {
+  return axios.post('/users/switch-role', { role });
+};
+
+
+// ============================================
+// GET CURRENT USER (alias for getUserProfile)
+// ============================================
+/**
+ * Get current logged-in user
+ * @returns {Promise}
+ */
+export const getCurrentUser = () => {
+  return axios.get('/users/me');
+};
+
+// ============================================
 // EXPORT ALL USER API METHODS
 // ============================================
 const userApi = {
   getUserById,
   getUserProfile,
+  getCurrentUser,
   updateProfile,
   updateUserProfile,
   deleteUser,
+  deleteAccount,
   uploadProfileImage,
   uploadCoverImage,
   getUserSkills,
@@ -356,12 +456,17 @@ const userApi = {
   getUserBadges,
   getUserAchievements,
   updateUserPreferences,
+  getNotificationPreferences,
+  updateNotificationPreferences,
   searchUsers,
   followUser,
   unfollowUser,
   getFollowers,
   getFollowing,
   applyAsEducator,
+  syncUser,
+  updateUserRole,
+  switchActiveRole,
 };
 
 export default userApi;

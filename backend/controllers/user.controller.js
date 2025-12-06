@@ -433,6 +433,127 @@ exports.getMyBadges = asyncHandler(async (req, res) => {
 });
 
 // ============================================
+// @desc    Get user certificates by ID
+// @route   GET /api/v1/users/:id/certificates
+// @access  Public
+// ============================================
+exports.getUserCertificates = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id)
+    .populate({
+      path: 'learnerProfile.certificates',
+      populate: { path: 'course', select: 'title thumbnail' },
+    });
+
+  if (!user) {
+    throw ApiError.notFound('User not found');
+  }
+
+  ApiResponse.success(res, user.learnerProfile?.certificates || [], 'Certificates retrieved');
+});
+
+// ============================================
+// @desc    Get user badges by ID
+// @route   GET /api/v1/users/:id/badges
+// @access  Public
+// ============================================
+exports.getUserBadges = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id)
+    .populate('gamification.badges');
+
+  if (!user) {
+    throw ApiError.notFound('User not found');
+  }
+
+  ApiResponse.success(res, user.gamification?.badges || [], 'Badges retrieved');
+});
+
+// ============================================
+// @desc    Switch active role
+// @route   POST /api/v1/users/switch-role
+// @access  Private
+// ============================================
+exports.switchActiveRole = asyncHandler(async (req, res) => {
+  const { role } = req.body;
+  const validRoles = ['learner', 'educator', 'skillExchanger'];
+
+  if (!validRoles.includes(role)) {
+    throw ApiError.badRequest('Invalid role');
+  }
+
+  const user = await User.findById(req.user._id);
+  
+  if (!user) {
+    throw ApiError.notFound('User not found');
+  }
+
+  // Check if user has this role capability
+  if (role === 'educator' && !user.educatorProfile) {
+    throw ApiError.forbidden('You need to apply as educator first');
+  }
+
+  if (role === 'skillExchanger' && !user.skillExchangeProfile) {
+    // Initialize skill exchanger profile
+    user.skillExchangeProfile = {
+      offeredSkills: [],
+      desiredSkills: [],
+      completedExchanges: 0,
+      rating: { average: 0, count: 0 },
+      availability: [],
+    };
+  }
+
+  user.activeRole = role;
+  await user.save();
+
+  ApiResponse.success(res, { activeRole: role }, 'Role switched successfully');
+});
+
+// ============================================
+// @desc    Get my statistics
+// @route   GET /api/v1/users/statistics
+// @access  Private
+// ============================================
+exports.getMyStatistics = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    throw ApiError.notFound('User not found');
+  }
+
+  const stats = {
+    coursesCompleted: user.learnerProfile?.completedCourses?.length || 0,
+    certificatesEarned: user.learnerProfile?.certificates?.length || 0,
+    totalPoints: user.gamification?.points || 0,
+    currentStreak: user.gamification?.streak || user.learnerProfile?.currentStreak || 0,
+    learningHours: user.learnerProfile?.learningHours || 0,
+    level: user.gamification?.level || 1,
+    enrolledCourses: user.learnerProfile?.enrolledCourses?.length || 0,
+    badges: user.gamification?.badges?.length || 0,
+  };
+
+  ApiResponse.success(res, stats, 'Statistics retrieved');
+});
+
+// ============================================
+// @desc    Get notification preferences
+// @route   GET /api/v1/users/notification-preferences
+// @access  Private
+// ============================================
+exports.getNotificationPreferences = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select('notificationPreferences');
+
+  if (!user) {
+    throw ApiError.notFound('User not found');
+  }
+
+  ApiResponse.success(
+    res,
+    user.notificationPreferences || {},
+    'Notification preferences retrieved successfully'
+  );
+});
+
+// ============================================
 // @desc    Update notification preferences
 // @route   PUT /api/v1/users/notification-preferences
 // @access  Private
@@ -604,6 +725,36 @@ exports.exportUserData = asyncHandler(async (req, res) => {
   res.setHeader('Content-Disposition', 'attachment; filename=user-data.json');
   
   ApiResponse.success(res, user, 'User data exported successfully');
+});
+
+// ============================================
+// @desc    Delete own account
+// @route   DELETE /api/v1/users/me
+// @access  Private
+// ============================================
+exports.deleteAccount = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    throw ApiError.notFound('User not found');
+  }
+
+  // Delete profile images from Cloudinary if they exist
+  if (user.profileImage?.publicId) {
+    await deleteFromCloudinary(user.profileImage.publicId);
+  }
+  if (user.coverImage?.publicId) {
+    await deleteFromCloudinary(user.coverImage.publicId);
+  }
+
+  // Soft delete or hard delete based on requirements
+  // For now, doing soft delete by marking as deleted
+  user.status = 'deleted';
+  user.deletedAt = new Date();
+  user.email = `deleted_${user._id}_${user.email}`; // Preserve but invalidate email
+  await user.save();
+
+  ApiResponse.success(res, null, 'Account deleted successfully');
 });
 
 // ============================================

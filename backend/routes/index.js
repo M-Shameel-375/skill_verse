@@ -23,6 +23,7 @@ const analyticsRoutes = require('./analytics.routes');
 const chatRoutes = require('./chat.routes');
 const aiRoutes = require('./ai.routes');
 const disputeRoutes = require('./dispute.routes');
+const educatorRoutes = require('./educator.routes');
 
 // Health check endpoint for production monitoring
 router.get('/health', (req, res) => {
@@ -77,5 +78,6 @@ router.use('/analytics', analyticsRoutes);
 router.use('/chats', chatRoutes);
 router.use('/ai', aiRoutes);
 router.use('/disputes', disputeRoutes);
+router.use('/educators', educatorRoutes);
 
 module.exports = router;

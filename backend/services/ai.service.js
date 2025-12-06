@@ -189,6 +189,11 @@ Text: "${text}"`;
 // CALL OPENAI API
 // ============================================
 const callOpenAI = async (prompt, options = {}) => {
+  // Check if OpenAI API key is configured
+  if (!config.ai.apiKey || config.ai.apiKey === 'sk-your_openai_api_key' || config.ai.apiKey.startsWith('sk-your_')) {
+    throw new Error('OpenAI API key is not configured. Please add a valid API key to your .env file.');
+  }
+
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',

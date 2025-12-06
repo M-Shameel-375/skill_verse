@@ -22,7 +22,7 @@ import {
   TrendingUp,
   Globe,
 } from 'lucide-react';
-import { applyAsEducator } from '@/api/userApi';
+import { applyAsEducator } from '@/api/educatorApi';
 import toast from 'react-hot-toast';
 
 const BecomeEducator = () => {

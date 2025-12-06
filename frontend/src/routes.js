@@ -61,6 +61,11 @@ const AdminDashboard = lazy(() => import('./features/admin/components/AdminDashb
 const UserManagement = lazy(() => import('./features/admin/components/UserManagement'));
 const CourseModeration = lazy(() => import('./features/admin/components/CourseModeration'));
 const Analytics = lazy(() => import('./features/admin/components/Analytics'));
+const ContentModeration = lazy(() => import('./features/admin/components/ContentModeration'));
+const SystemSettings = lazy(() => import('./features/admin/components/SystemSettings'));
+const Reports = lazy(() => import('./features/admin/components/Reports'));
+const Payments = lazy(() => import('./features/admin/components/Payments'));
+const AdminRouteGuard = lazy(() => import('./features/admin/components/AdminRouteGuard'));
 
 // Educator Pages
 const EducatorDashboard = lazy(() => import('./features/educator/components/EducatorDashboard'));
@@ -278,7 +283,11 @@ const router = createBrowserRouter([
     element: (
       <>
         <SignedIn>
-          <DashboardLayout />
+          <SuspenseWrapper>
+            <AdminRouteGuard>
+              <DashboardLayout />
+            </AdminRouteGuard>
+          </SuspenseWrapper>
         </SignedIn>
         <SignedOut>
           <RedirectToSignIn />
@@ -288,6 +297,10 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
+        element: <SuspenseWrapper><AdminDashboard /></SuspenseWrapper>,
+      },
+      {
+        path: 'dashboard',
         element: <SuspenseWrapper><AdminDashboard /></SuspenseWrapper>,
       },
       {
@@ -301,6 +314,22 @@ const router = createBrowserRouter([
       {
         path: 'analytics',
         element: <SuspenseWrapper><Analytics /></SuspenseWrapper>,
+      },
+      {
+        path: 'moderation',
+        element: <SuspenseWrapper><ContentModeration /></SuspenseWrapper>,
+      },
+      {
+        path: 'settings',
+        element: <SuspenseWrapper><SystemSettings /></SuspenseWrapper>,
+      },
+      {
+        path: 'reports',
+        element: <SuspenseWrapper><Reports /></SuspenseWrapper>,
+      },
+      {
+        path: 'payments',
+        element: <SuspenseWrapper><Payments /></SuspenseWrapper>,
       },
     ],
   },
