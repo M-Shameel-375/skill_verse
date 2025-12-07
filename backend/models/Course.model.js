@@ -354,12 +354,12 @@ const courseSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ['draft', 'pending', 'published', 'archived', 'rejected'],
-      default: 'draft',
+      default: 'published', // Auto-publish courses (no admin approval needed)
     },
 
     isPublished: {
       type: Boolean,
-      default: false,
+      default: true, // Auto-publish courses
     },
 
     publishedAt: Date,

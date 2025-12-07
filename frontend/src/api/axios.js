@@ -139,7 +139,7 @@ axiosInstance.interceptors.response.use(
     // Handle 403 Forbidden
     if (error.response?.status === 403) {
       // Redirect to unauthorized page
-      window.location.href = config.routes.unauthorized;
+      window.location.href = appConfig.routes.unauthorized || '/unauthorized';
     }
 
     // Handle 404 Not Found

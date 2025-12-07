@@ -48,13 +48,7 @@ router.get('/top-educators', getTopEducators);
 router.post('/sync', syncUser); // Sync user from Clerk to MongoDB
 router.put('/role', updateUserRole); // Role selection endpoint (for Clerk)
 
-// These must come AFTER specific routes to avoid catching them
-router.get('/:id/stats', getUserStats);
-router.get('/:id/certificates', getUserCertificates);
-router.get('/:id/badges', getUserBadges);
-router.get('/:id', getUserProfile);
-
-// Protected routes
+// Protected routes - MUST come before /:id routes
 router.use(protect);
 
 router.get('/me', getCurrentUser);
@@ -68,6 +62,12 @@ router.get('/me/export-data', exportUserData);
 
 // Statistics
 router.get('/statistics', getMyStatistics);
+
+// These must come AFTER /me routes to avoid catching them
+router.get('/:id/stats', getUserStats);
+router.get('/:id/certificates', getUserCertificates);
+router.get('/:id/badges', getUserBadges);
+router.get('/:id', getUserProfile);
 
 // Role switching
 router.post('/switch-role', switchActiveRole);

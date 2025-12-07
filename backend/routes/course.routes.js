@@ -61,8 +61,8 @@ router.get('/recommended', protect, getRecommendedCourses);
 
 // Protected routes - Educator/Admin (MUST come before /:id routes)
 router.post('/', protect, authorize('educator', 'admin'), uploadCourseFiles, validateCourse, validate, createCourse);
-router.get('/my-courses', protect, authorize('educator', 'admin'), getMyCoursesAsEducator);
-router.get('/my/courses', protect, authorize('educator', 'admin'), getMyCoursesAsEducator);
+router.get('/my-courses', protect, getMyCoursesAsEducator); // All users can see their courses
+router.get('/my/courses', protect, getMyCoursesAsEducator); // All users can see their courses
 
 // This route must be LAST among GET routes because :id matches anything
 router.get('/:id', validateMongoId('id'), validate, optionalAuth, getCourseById);

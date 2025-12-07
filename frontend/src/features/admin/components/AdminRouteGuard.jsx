@@ -30,7 +30,9 @@ const AdminRouteGuard = ({ children }) => {
       try {
         // Check admin status from backend
         const response = await axios.get('/users/me');
-        const userData = response.data?.user || response.data || response;
+        const userData = response.data?.user || response.data?.data || response.data || response;
+        
+        console.log('Admin check response:', userData);
         
         if (userData.role === 'admin') {
           setIsAdmin(true);
@@ -39,12 +41,20 @@ const AdminRouteGuard = ({ children }) => {
           localStorage.setItem('skillverse_user', JSON.stringify(userData));
         } else {
           setIsAdmin(false);
-          toast.error('Access denied. Admin privileges required.');
+          toast.error(`Access denied. Your role is: ${userData.role}. Admin privileges required.`);
         }
       } catch (error) {
         console.error('Failed to verify admin status:', error);
-        setIsAdmin(false);
-        toast.error('Failed to verify admin access.');
+        
+        // Fallback: check localStorage
+        const storedRole = localStorage.getItem('skillverse_user_role');
+        if (storedRole === 'admin') {
+          console.log('✅ Using cached admin status from localStorage');
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+          toast.error('Failed to verify admin access. Please try logging in again.');
+        }
       } finally {
         setLoading(false);
       }

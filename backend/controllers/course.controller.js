@@ -79,7 +79,7 @@ exports.createCourse = asyncHandler(async (req, res) => {
     publicId: 'placeholder',
   };
 
-  // Create course
+  // Create course (auto-published)
   const course = await Course.create({
     title,
     description,
@@ -97,6 +97,9 @@ exports.createCourse = asyncHandler(async (req, res) => {
     requirements,
     language,
     instructor: req.user._id,
+    status: 'published', // Auto-publish (no admin approval needed)
+    isPublished: true,
+    publishedAt: new Date(),
     thumbnail: req.files?.thumbnail
       ? {
           url: req.files.thumbnail[0].path,
@@ -711,14 +714,42 @@ exports.updateCourseProgress = asyncHandler(async (req, res) => {
 });
 
 // ============================================
-// @desc    Get my courses as educator
+// @desc    Get my courses (educator: created, learner: enrolled)
 // @route   GET /api/v1/courses/my-courses
-// @access  Private (Educator)
+// @access  Private (All roles)
 // ============================================
 exports.getMyCoursesAsEducator = asyncHandler(async (req, res) => {
-  const courses = await Course.find({ instructor: req.user._id })
-    .sort('-createdAt')
-    .select('-enrolledStudents -sections');
+  let courses;
+
+  // If user is educator or admin, show courses they created
+  if (req.user.role === 'educator' || req.user.role === 'admin') {
+    courses = await Course.find({ instructor: req.user._id })
+      .sort('-createdAt')
+      .select('-enrolledStudents -sections');
+  } 
+  // If user is learner or skillExchanger, show courses they're enrolled in
+  else {
+    courses = await Course.find({ 
+      'enrolledStudents.user': req.user._id 
+    })
+      .populate('instructor', 'name profileImage')
+      .sort('-createdAt')
+      .select('-sections');
+      
+    // Add progress for each course
+    courses = courses.map((course) => {
+      const enrollment = course.enrolledStudents.find(
+        (e) => e.user.toString() === req.user._id.toString()
+      );
+      return {
+        ...course.toObject(),
+        progress: enrollment?.progress || 0,
+        completedLectures: enrollment?.completedLectures?.length || 0,
+        lastAccessed: enrollment?.lastAccessedAt,
+        enrolledAt: enrollment?.enrolledAt,
+      };
+    });
+  }
 
   ApiResponse.success(res, courses, 'Courses retrieved successfully');
 });
